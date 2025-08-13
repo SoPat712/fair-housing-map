@@ -1,0 +1,104 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="3.42.1-Münster">
+  <identifier>Hunterdon_Parcels</identifier>
+  <parentidentifier></parentidentifier>
+  <language>ENG</language>
+  <type>dataset</type>
+  <title>Parcels and MOD-IV of Hunterdon County, New Jersey</title>
+  <abstract>This parcels data set is a spatial representation of municipal tax lots for Hunterdon County, New Jersey that have been extracted from the NJ statewide parcels composite by the NJ Office of Information Technology, Office of GIS (NJOGIS). Parcels at county boundaries have been modified to correspond with the NJ county boundaries and the parcels in adjacent counties.
+Each parcel contains a field named PAMS_PIN based on a concatenation of the county/municipality code, block number, lot number and qualification code. Using the PAMS_PIN, the dataset can be joined to the MOD-IV database table that contains supplementary attribute information regarding lot ownership and characteristics. Due to irregularities in the data development process, duplicate PAMS_PIN values exist in the parcel records. Users should avoid joining MOD-IV database table records to all parcel records with duplicate PAMS_PINs because of uncertainty regarding whether the MOD-IV records will join to the correct parcel records. There are also parcel records with unique PAMS_PIN values for which there are no corresponding records in the MOD-IV database tables. This is mostly due to the way data are organized in the MOD-IV database.
+The polygons delineated in the dataset do not represent legal boundaries and should not be used to provide a legal determination of land ownership. Parcels are not survey data and should not be used as such.
+The MOD-IV (Tax Assessor's) table for the county is packaged together with the parcels as one download. The MOD-IV system provides for uniform preparation, maintenance, presentation and storage of property tax information required by the Constitution of the State of New Jersey, New Jersey Statutes and rules promulgated by the Director of the Division of Taxation. MOD-IV maintains and updates all assessment records and produces all statutorily required tax lists for property tax bills. This list accounts for all parcels of real property as delineated and identified on each municipality's official tax map, as well as taxable values and descriptive data for each parcel. Tax List records were received as raw data from the Taxation Team of NJOIT which collected source information from municipal tax assessors and created the statewide table. This table was subsequently processed for ease of use with NJ tax parcel spatial data and split into an individual table for each county.
+***NOTE*** For users who incorporate NJOGIS services into web maps and/or web applications, please sign up for the NJ Geospatial Forum discussion listserv for early notification of service changes. Visit https://nj.gov/njgf/about/listserv/ for more information.
+
+Parcels are a key framework data set for Hunterdon County's GIS spatial data network which serves the Hunterdon County information management system. To provide basic information regarding property location and ID, the normalized parcels data were developed to be compatible with the New Jersey Department of Treasury property assessment MOD IV system. The parcels data set and MOD-IV Tax List Search database table are made available for combined usage. Attribute fields with a common unique identifier are provided in the parcels data sets (PAMS_PIN) and MOD-IV databases (GIS_PIN) to join the tables. The MOD-IV table was developed for public use of the most current property tax assessment information.
+
+Attributes in this feature class table include parcel attributes specified in the New Jersey GIS Parcel Mapping Standard, available for download at https://geoapps.nj.gov/njgin/parcel/NJGIS_ParcelMappingStandardv3.2.pdf Normalization of the parcels data is done in concert with statewide municipal boundaries data, provided by NJOGIS, as the spatial framework within which to align the parcel data. The resulting, normalized parcels data accurately and correctly edgematch at and across most municipal boundaries. Improvements to the municipal boundaries data also are made during this process and are released occasionally as warranted. Generally there are some parcels for each county for which a MOD-IV record is not matchable. This is due mainly to temporal mis-matches between the datasets and to the way data are organized in MOD-IV (multiple-lot properties with one tax bill are listed only once). There also are errors in the parcel data, including a few duplicated and/or mis-constructed PAMS_PIN values. Detailed QA/QC information is available from the publisher. The bundled tax list table consists of the entire county's property tax MOD-IV records as published for public use by NJ Department of the Treasury, Division of Taxation. A statewide extract of these records is processed each year by NJOIT Enterprise Data Services (EDS) and NJOGIS, for use with the county's parcel data. This processing is performed as soon as is practical after the final statewide table is available. Usually the table containing the data for the previous calendar year becomes available in late spring or early summer. The practical effect of this timing is that the MOD-IV attribute data for a summer or fall release of this feature class generally is for the calendar year previous to that release. The NJ Office of Information Technology, Office of GIS (NJOGIS) extracts the individual county MOD-IV records into a separate table for each county.</abstract>
+  <keywords vocabulary="Search keys">
+    <keyword>parcel</keyword>
+    <keyword>lot</keyword>
+    <keyword>block</keyword>
+    <keyword>cadastral</keyword>
+    <keyword>qualifier</keyword>
+    <keyword>tax</keyword>
+    <keyword>assessment</keyword>
+    <keyword>property</keyword>
+    <keyword>MOD-IV</keyword>
+    <keyword>MOD 4</keyword>
+    <keyword>Hunterdon County</keyword>
+    <keyword>New Jersey</keyword>
+    <keyword>USA</keyword>
+    <keyword>NJ</keyword>
+  </keywords>
+  <keywords vocabulary="gmd:topicCategory">
+    <keyword>parcel</keyword>
+    <keyword>lot</keyword>
+    <keyword>block</keyword>
+    <keyword>cadastral</keyword>
+    <keyword>qualifier</keyword>
+    <keyword>tax</keyword>
+    <keyword>assessment</keyword>
+    <keyword>property</keyword>
+    <keyword>MOD-IV</keyword>
+    <keyword>MOD 4</keyword>
+  </keywords>
+  <contact>
+    <contactAddress>
+      <type>postal</type>
+      <address>PO Box 212</address>
+      <city>Trenton</city>
+      <administrativearea>NJ</administrativearea>
+      <postalcode>08625-0212</postalcode>
+      <country>US</country>
+    </contactAddress>
+    <name></name>
+    <organization>NJ Office of Information Technology, Office of GIS (NJOGIS)</organization>
+    <position></position>
+    <voice>use email</voice>
+    <fax></fax>
+    <email>njgin@oit.nj.gov</email>
+    <role>Point of contact</role>
+  </contact>
+  <links>
+    <link name="Esri File Geodatabase, or Shapefile/DBF" type="" size="" description="" format="" mimeType="" url="https://www.arcgis.com/home/item.html?id=93575d7d60244e08a59650fb7bc6d235"/>
+  </links>
+  <dates>
+    <date type="Published" value="2025-06-13T00:00:00"/>
+  </dates>
+  <fees></fees>
+  <constraints type="Limitations of use">The data layer is not survey data and must not be used as survey data. The polygons delineated in this dataset do not represent legal boundaries and should not be used to provide a legal determination of land ownership. Please note that these parcel datasets are not intended for use as tax maps. 
+See the balance of this metadata record for conditions that limit appropriate uses. Users are urged to look at this documentation to assess the fitness of the data for any planned use. 
+Acknowledgment of dataset providers, NJ Office of Information Technology, Office of GIS (NJOGIS); and Gloucester County, is requested for maps, data or other products derived from this dataset. 
+The State of New Jersey makes great effort to provide secure, accurate, and complete data and metadata. However, portions of the data and metadata may be incorrect or not current. Any errors or omissions should be reported for investigation. 
+The State of New Jersey, its officers, employees or agents shall not be liable for damages or losses of any kind arising out of or in connection with the use or performance of data and metadata, including but not limited to, damages or losses caused by reliance upon the accuracy or timeliness of any such data and metadata, or damages incurred from the viewing, distributing, or copying of those materials.
+The data and metadata are provided "as is." No warranty of any kind, implied, expressed, or statutory, including but not limited to the warranties of non-infringement of third party rights, title, merchantability, fitness for a particular purpose, and freedom from computer virus, is given with respect to the data and metadata, or its hyperlinks to other Internet resources. 
+The State disclaims any duty or obligation either to maintain availability of or to update the data and metadata. 
+All web site data distribution by NJOGIS is, in addition, subject to the Conditions of Use for State of New Jersey executive branch web sites, listed on the State’s Legal Statement &amp; Disclaimers page https://www.nj.gov/nj/legal.html .</constraints>
+  <rights>Hunterdon County GIS;&#xd;
+NJ Office of Information Technology, Office of GIS (NJOGIS); &#xd;
+&#xd;
+Processing of data from Division of Taxation for use in this table was performed by NJ Office of Information Technology (NJOIT), Enterprise Data Services (EDS), Data Warehouse.</rights>
+  <encoding></encoding>
+  <crs>
+    <spatialrefsys nativeFormat="Wkt">
+      <wkt>PROJCRS["NAD83 / New Jersey (ftUS)",BASEGEOGCRS["NAD83",DATUM["North American Datum 1983",ELLIPSOID["GRS 1980",6378137,298.257222101,LENGTHUNIT["metre",1]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],ID["EPSG",4269]],CONVERSION["SPCS83 New Jersey zone (US Survey feet)",METHOD["Transverse Mercator",ID["EPSG",9807]],PARAMETER["Latitude of natural origin",38.8333333333333,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8801]],PARAMETER["Longitude of natural origin",-74.5,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8802]],PARAMETER["Scale factor at natural origin",0.9999,SCALEUNIT["unity",1],ID["EPSG",8805]],PARAMETER["False easting",492125,LENGTHUNIT["US survey foot",0.304800609601219],ID["EPSG",8806]],PARAMETER["False northing",0,LENGTHUNIT["US survey foot",0.304800609601219],ID["EPSG",8807]]],CS[Cartesian,2],AXIS["easting (X)",east,ORDER[1],LENGTHUNIT["US survey foot",0.304800609601219]],AXIS["northing (Y)",north,ORDER[2],LENGTHUNIT["US survey foot",0.304800609601219]],USAGE[SCOPE["Engineering survey, topographic mapping."],AREA["United States (USA) - New Jersey - counties of Atlantic; Bergen; Burlington; Camden; Cape May; Cumberland; Essex; Gloucester; Hudson; Hunterdon; Mercer; Middlesex; Monmouth; Morris; Ocean; Passaic; Salem; Somerset; Sussex; Union; Warren."],BBOX[38.87,-75.6,41.36,-73.88]],ID["EPSG",3424]]</wkt>
+      <proj4>+proj=tmerc +lat_0=38.8333333333333 +lon_0=-74.5 +k=0.9999 +x_0=150000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=us-ft +no_defs</proj4>
+      <srsid>1382</srsid>
+      <srid>3424</srid>
+      <authid>EPSG:3424</authid>
+      <description>NAD83 / New Jersey (ftUS)</description>
+      <projectionacronym>tmerc</projectionacronym>
+      <ellipsoidacronym>EPSG:7019</ellipsoidacronym>
+      <geographicflag>false</geographicflag>
+    </spatialrefsys>
+  </crs>
+  <extent>
+    <spatial minz="0" maxx="-74.702699999999993" minx="-75.19549999999999557" maxz="0" miny="40.3393999999999977" crs="EPSG:3424" maxy="40.78770000000000095" dimensions="2"/>
+    <temporal>
+      <period>
+        <start>2025-06-13T04:00:00Z</start>
+        <end></end>
+      </period>
+    </temporal>
+  </extent>
+</qgis>

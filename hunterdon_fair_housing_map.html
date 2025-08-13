@@ -1,0 +1,3186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hunterdon County FAIR Housing Plan - Overlay Districts</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f8f9fa;
+      }
+      .header {
+        background: linear-gradient(135deg, #2c5aa0 0%, #1e3d72 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 2rem;
+      }
+      .header p {
+        margin: 10px 0 0 0;
+        opacity: 0.9;
+      }
+      #map {
+        height: 70vh;
+        width: 100%;
+        border-radius: 0;
+      }
+      .overlay-section {
+        margin: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .section-header {
+        padding: 20px;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .section-content {
+        padding: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 15px;
+      }
+      .parcel-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid;
+      }
+      .parcel-card h4 {
+        margin: 0 0 10px 0;
+        color: #333;
+      }
+      .legend {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        font-size: 14px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .legend h4 {
+        margin: 0 0 10px 0;
+        color: #2c5aa0;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 5px 0;
+        padding: 5px;
+        border-radius: 3px;
+        transition: background-color 0.2s;
+      }
+      .legend-item:hover {
+        background-color: #f0f0f0;
+      }
+      .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 8px;
+        border-radius: 3px;
+      }
+      .legend-section {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .legend-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+      .legend-section h5 {
+        margin: 0 0 8px 0;
+        color: #555;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+      .township-legend-item {
+        display: flex;
+        align-items: center;
+        margin: 3px 0;
+        padding: 3px;
+        font-size: 12px;
+      }
+      .toggle-icon {
+        transition: transform 0.3s;
+      }
+      .collapsed .toggle-icon {
+        transform: rotate(-90deg);
+      }
+      .collapsed .section-content {
+        display: none;
+      }
+      @media (max-width: 768px) {
+        .header h1 {
+          font-size: 1.5rem;
+        }
+        .legend {
+          position: relative;
+          margin: 20px;
+        }
+        .section-content {
+          grid-template-columns: 1fr;
+        }
+      }
+      .footer {
+        text-align: center;
+        padding: 20px;
+        background-color: #e9ecef;
+        color: #495057;
+        border-top: 1px solid #dee2e6;
+        margin-top: 20px;
+      }
+      .footer a {
+        color: #2c5aa0;
+        text-decoration: none;
+        font-weight: bold;
+      }
+      .footer .github-button {
+        background-color: #333;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 5px;
+        margin-left: 15px;
+        transition: background-color 0.3s;
+      }
+      .footer .github-button:hover {
+        background-color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Hunterdon County FAIR Housing Plan</h1>
+      <p>
+        Interactive Map of Overlay Districts for Affordable Housing Development
+      </p>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="legend">
+      <h4>FAIR Housing Overlays</h4>
+      <div class="legend-section">
+        <h5>Housing Overlays</h5>
+        <div id="legendItems">
+          <!-- Legend items will be populated by JavaScript -->
+        </div>
+      </div>
+      <div class="legend-section">
+        <h5>Township Boundaries</h5>
+        <div id="townshipLegend">
+          <!-- Township legend items will be populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <div id="overlaysList">
+      <!-- Overlay sections will be populated by JavaScript -->
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      // Initialize map centered on Hunterdon County, NJ
+      const map = L.map("map").setView([40.5584, -74.8857], 11);
+
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
+
+      // ===== PASTE YOUR GEOJSON DATA HERE =====
+
+      // 18 Minneakoning Overlay - Block 16.01, Lot 16.05
+      const overlay1_GeoJSON = {
+        type: "FeatureCollection",
+        name: "18MinneakoningOverlay",
+        crs: {
+          type: "name",
+          properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" },
+        },
+        features: [
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_16.01_16.05",
+              MUN: "1021",
+              BLOCK: "16.01",
+              LOT: "16.05",
+              QCODE: null,
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "16.01",
+              HunterdonTaxList_LOT: "16.05",
+              HunterdonTaxList_QUALIFIER: null,
+              HunterdonTaxList_PROP_CLASS: "1",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "18 MINNEAKONING ROAD",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "PO BOX 151",
+              HunterdonTaxList_CITY_STATE: "STANTON  NJ",
+              HunterdonTaxList_ZIP_CODE: "08885",
+              HunterdonTaxList_LAND_VAL: 362300,
+              HunterdonTaxList_IMPRVT_VAL: 0,
+              HunterdonTaxList_NET_VALUE: 362300,
+              HunterdonTaxList_LAST_YR_TX: "9869.05",
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: "4.8113 AC",
+              HunterdonTaxList_CALC_ACRE: 4.8113,
+              HunterdonTaxList_ADD_LOTS1: null,
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: null,
+              HunterdonTaxList_DEED_BOOK: "02099",
+              HunterdonTaxList_DEED_PAGE: "00259",
+              HunterdonTaxList_DEED_DATE: "040308",
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: "A",
+              HunterdonTaxList_SALE_PRICE: 431000,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: "00016    00016  05",
+              HunterdonTaxList_ZIP5: "08885",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.84828836097762, 40.530147213165066],
+                    [-74.848115644268304, 40.530119939321622],
+                    [-74.847948382970387, 40.530103801233679],
+                    [-74.847802296989528, 40.530095662478452],
+                    [-74.847671452863196, 40.530099659542259],
+                    [-74.847666621240165, 40.530100016313519],
+                    [-74.847637291603817, 40.530102849638986],
+                    [-74.847621333748975, 40.530104270187948],
+                    [-74.84760522282572, 40.530106448620558],
+                    [-74.846732272071776, 40.529517428617538],
+                    [-74.846435309137107, 40.528962948702926],
+                    [-74.846982836853854, 40.528900741938358],
+                    [-74.84849781865077, 40.528728198410455],
+                    [-74.848614666369841, 40.529396272778001],
+                    [-74.848619645865213, 40.529451785788062],
+                    [-74.848621405665853, 40.529482973623907],
+                    [-74.848622362523997, 40.529513871178352],
+                    [-74.848622750494499, 40.529544774051075],
+                    [-74.84862234073249, 40.529575709050448],
+                    [-74.848621250954835, 40.529606615479523],
+                    [-74.848619475413088, 40.529637523076289],
+                    [-74.848617020012483, 40.529668432723462],
+                    [-74.848613876662696, 40.529699377768566],
+                    [-74.848609936895031, 40.529730154096853],
+                    [-74.848605318245234, 40.529760893745589],
+                    [-74.84860001623386, 40.529791643560721],
+                    [-74.848594024174233, 40.529822252257318],
+                    [-74.848587242317805, 40.529852831813614],
+                    [-74.848579887173415, 40.52988325278713],
+                    [-74.848571737895924, 40.529913491526948],
+                    [-74.84856301851552, 40.529943731084728],
+                    [-74.848553489922125, 40.529973839789577],
+                    [-74.84854329214734, 40.530003735262184],
+                    [-74.848532420259517, 40.530033604847191],
+                    [-74.848520957612067, 40.530063361833072],
+                    [-74.84850868941929, 40.530092785313613],
+                    [-74.848495699305872, 40.530122296528823],
+                    [-74.84849324212675, 40.53012736184666],
+                    [-74.848493044328507, 40.530127685767383],
+                    [-74.848492871270267, 40.530128000607249],
+                    [-74.848484753322722, 40.530141310506679],
+                    [-74.848474044310009, 40.530153506908682],
+                    [-74.848461000057682, 40.53016429845426],
+                    [-74.848445932178095, 40.530173427344771],
+                    [-74.848440040764686, 40.530172446313067],
+                    [-74.848385694907719, 40.530163391343081],
+                    [-74.848381194347226, 40.530162718632766],
+                    [-74.848376579585505, 40.530161874247149],
+                    [-74.848372080205536, 40.530161201532941],
+                    [-74.848367466624353, 40.530160357143416],
+                    [-74.848362852758541, 40.530159685674512],
+                    [-74.84828836097762, 40.530147213165066],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      };
+      // Hart/Commerce Overlay - Block 71, Lot 21 & Block 71.02, Lot 21
+      const overlay2_GeoJSON = {
+        type: "FeatureCollection",
+        name: "HartCommerceOverlay",
+        crs: {
+          type: "name",
+          properties: {
+            name: "urn:ogc:def:crs:OGC:1.3:CRS84",
+          },
+        },
+        features: [
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_71_21_Q0428",
+              MUN: "1021",
+              BLOCK: "71",
+              LOT: "21",
+              QCODE: "Q0428",
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "71",
+              HunterdonTaxList_LOT: "21",
+              HunterdonTaxList_QUALIFIER: "Q0428",
+              HunterdonTaxList_PROP_CLASS: "3B",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "22 HART BOULEVARD",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "299 PARK AVE-42ND FL WONG",
+              HunterdonTaxList_CITY_STATE: "NEW YORK  NY",
+              HunterdonTaxList_ZIP_CODE: "10171",
+              HunterdonTaxList_LAND_VAL: 4600,
+              HunterdonTaxList_IMPRVT_VAL: 0,
+              HunterdonTaxList_NET_VALUE: 4600,
+              HunterdonTaxList_LAST_YR_TX: "119.86",
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: "18.63 AC.",
+              HunterdonTaxList_CALC_ACRE: 18.63,
+              HunterdonTaxList_ADD_LOTS1: "UNIT C0004-WOOD PLAN",
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: null,
+              HunterdonTaxList_DEED_BOOK: "01200",
+              HunterdonTaxList_DEED_PAGE: "00085",
+              HunterdonTaxList_DEED_DATE: "981029",
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: "Z",
+              HunterdonTaxList_SALE_PRICE: 100,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: "00071    00021       QFARM",
+              HunterdonTaxList_ZIP5: "10171",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.856966782467836, 40.490072635553616],
+                    [-74.857086819393288, 40.489792689462924],
+                    [-74.857180048995446, 40.489575365817153],
+                    [-74.857293033048563, 40.489311998464949],
+                    [-74.857407682115934, 40.489044681083492],
+                    [-74.857583259035337, 40.488635285347272],
+                    [-74.857746675173303, 40.488622941904787],
+                    [-74.858823869447377, 40.488542568212921],
+                    [-74.860326294629743, 40.488433408732455],
+                    [-74.860351281218456, 40.488434114402168],
+                    [-74.861229446970853, 40.488458899851487],
+                    [-74.861446546816296, 40.489070899335495],
+                    [-74.860141355740353, 40.490640552179762],
+                    [-74.85996511530746, 40.490545708135954],
+                    [-74.859916855229613, 40.490597843650804],
+                    [-74.859863736265083, 40.490666122750696],
+                    [-74.859797925221415, 40.490735470746067],
+                    [-74.859727536269133, 40.490809979147187],
+                    [-74.859665010817139, 40.490884291921681],
+                    [-74.859605385835053, 40.490954821099749],
+                    [-74.859544942131876, 40.491019177173364],
+                    [-74.859487874000436, 40.491084550337192],
+                    [-74.859446495864844, 40.491142327412604],
+                    [-74.859400460462027, 40.491211613689991],
+                    [-74.859412916644573, 40.491287709711237],
+                    [-74.858945927821338, 40.491132172672756],
+                    [-74.858841068160032, 40.491098387100365],
+                    [-74.858739394400757, 40.491059335874269],
+                    [-74.858641359570896, 40.49101519299694],
+                    [-74.858547400481285, 40.490966155157629],
+                    [-74.858448930835294, 40.490898000215466],
+                    [-74.858355208127946, 40.490826049720795],
+                    [-74.858266483019747, 40.490750496116206],
+                    [-74.8581829928019, 40.490671541480722],
+                    [-74.858104960761793, 40.490589396989193],
+                    [-74.858053350408852, 40.490529739584836],
+                    [-74.857996399469485, 40.490472985296719],
+                    [-74.857934387089827, 40.490419412294244],
+                    [-74.857867617221473, 40.49036928315374],
+                    [-74.857796417131581, 40.490322843571668],
+                    [-74.857717891158785, 40.49027364539932],
+                    [-74.857634630623096, 40.490229216168288],
+                    [-74.857547131223242, 40.490189820387293],
+                    [-74.857455913891073, 40.490155692598094],
+                    [-74.857361521690436, 40.49012703597927],
+                    [-74.857264516584323, 40.490104021136773],
+                    [-74.857165476089577, 40.490086785088366],
+                    [-74.85706498983906, 40.49007543044798],
+                    [-74.856966782467836, 40.490072635553616],
+                  ],
+                ],
+              ],
+            },
+          },
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_71.02_21_C0003",
+              MUN: "1021",
+              BLOCK: "71.02",
+              LOT: "21",
+              QCODE: "C0003",
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: null,
+              HunterdonTaxList_BLOCK: null,
+              HunterdonTaxList_LOT: null,
+              HunterdonTaxList_QUALIFIER: null,
+              HunterdonTaxList_PROP_CLASS: null,
+              HunterdonTaxList_COUNTY: null,
+              HunterdonTaxList_MUN_NAME: null,
+              HunterdonTaxList_PROP_LOC: null,
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: null,
+              HunterdonTaxList_CITY_STATE: null,
+              HunterdonTaxList_ZIP_CODE: null,
+              HunterdonTaxList_LAND_VAL: null,
+              HunterdonTaxList_IMPRVT_VAL: null,
+              HunterdonTaxList_NET_VALUE: null,
+              HunterdonTaxList_LAST_YR_TX: null,
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: null,
+              HunterdonTaxList_CALC_ACRE: null,
+              HunterdonTaxList_ADD_LOTS1: null,
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: null,
+              HunterdonTaxList_DEED_BOOK: null,
+              HunterdonTaxList_DEED_PAGE: null,
+              HunterdonTaxList_DEED_DATE: null,
+              HunterdonTaxList_YR_CONSTR: null,
+              HunterdonTaxList_SALES_CODE: null,
+              HunterdonTaxList_SALE_PRICE: null,
+              HunterdonTaxList_DWELL: null,
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: null,
+              HunterdonTaxList_ZIP5: null,
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.854427858758726, 40.494518025456024],
+                    [-74.854652072036416, 40.493970715218133],
+                    [-74.854715308140712, 40.493816280303236],
+                    [-74.855327442703654, 40.493894352092205],
+                    [-74.855745468877416, 40.492920091177226],
+                    [-74.856574598344551, 40.492196255862254],
+                    [-74.856442853411579, 40.491294201328728],
+                    [-74.856896041305532, 40.49023742518726],
+                    [-74.8569038064485, 40.490219317464842],
+                    [-74.857009374936766, 40.490228979305428],
+                    [-74.857113824126699, 40.490244157576662],
+                    [-74.857216660103774, 40.490264780504205],
+                    [-74.857313004799721, 40.490288867361571],
+                    [-74.857406038426419, 40.490319619422706],
+                    [-74.857494971858642, 40.490356775845456],
+                    [-74.857579050746011, 40.490400021464751],
+                    [-74.857657561910997, 40.490448989465648],
+                    [-74.857734000293007, 40.490499334020171],
+                    [-74.857804201607195, 40.490554720848642],
+                    [-74.857867597405317, 40.490614701474044],
+                    [-74.857923674340455, 40.490678790221331],
+                    [-74.858009744082267, 40.490769714518947],
+                    [-74.858101973827459, 40.490857047395281],
+                    [-74.858200106984782, 40.490940545860738],
+                    [-74.858303870534613, 40.491019977593503],
+                    [-74.858412975788553, 40.491095121586021],
+                    [-74.858491009999668, 40.491136990283678],
+                    [-74.858571670264965, 40.491175850010578],
+                    [-74.858654757710539, 40.491211604953158],
+                    [-74.858671853715848, 40.491220760266032],
+                    [-74.858686779904744, 40.491231910162725],
+                    [-74.858699141504104, 40.491244759747744],
+                    [-74.858708611569313, 40.491258969171554],
+                    [-74.858714939631341, 40.49127416261905],
+                    [-74.858717958321435, 40.491289938249068],
+                    [-74.858717587797912, 40.491305878822438],
+                    [-74.858713837858133, 40.491321562737205],
+                    [-74.858706807679624, 40.491336575179361],
+                    [-74.858665123495186, 40.491406151173862],
+                    [-74.858622622274268, 40.491473615008218],
+                    [-74.858570574890209, 40.491542354005666],
+                    [-74.858510366832803, 40.491608713604258],
+                    [-74.858444300238958, 40.491672592087511],
+                    [-74.858372772395271, 40.491732390496686],
+                    [-74.858293437270547, 40.491788833894461],
+                    [-74.858206773066243, 40.491844446149109],
+                    [-74.858115774687718, 40.491899846606721],
+                    [-74.858020858768938, 40.491954633186531],
+                    [-74.857925105709128, 40.492010194119501],
+                    [-74.857829102516462, 40.492065332451006],
+                    [-74.857733017743783, 40.492120688006587],
+                    [-74.857637540096519, 40.492175775017344],
+                    [-74.857542212061844, 40.492231074935411],
+                    [-74.857447629918397, 40.492286912846112],
+                    [-74.857352484801282, 40.492343396369471],
+                    [-74.857257546536047, 40.49240332318287],
+                    [-74.85716666865774, 40.492466831786722],
+                    [-74.85708070132884, 40.492532960394051],
+                    [-74.856997937946119, 40.492600891110101],
+                    [-74.856918752872659, 40.492672480784933],
+                    [-74.856845529178401, 40.49274641615709],
+                    [-74.856776471967152, 40.492821022202058],
+                    [-74.856710889019297, 40.492894785303406],
+                    [-74.856580019579312, 40.493041568358869],
+                    [-74.856515608283416, 40.493115900533624],
+                    [-74.856452742872278, 40.493189015657904],
+                    [-74.856390110616829, 40.493260961911872],
+                    [-74.856327508371265, 40.493332362257085],
+                    [-74.856266438420477, 40.493403318338451],
+                    [-74.856204292362776, 40.493474478542787],
+                    [-74.8561412268091, 40.493551143491423],
+                    [-74.856087122907184, 40.493635776591255],
+                    [-74.856046667195756, 40.493725622805627],
+                    [-74.856019027425205, 40.493816549921469],
+                    [-74.85600046661402, 40.493907043789072],
+                    [-74.855986461101438, 40.493995851156654],
+                    [-74.855981268962992, 40.494030171220302],
+                    [-74.855972874919416, 40.494085659630592],
+                    [-74.855965199894158, 40.49417340186961],
+                    [-74.855952869311636, 40.494259055471375],
+                    [-74.855940791714715, 40.494345261278177],
+                    [-74.855929667253292, 40.494428557816889],
+                    [-74.855916096738795, 40.494506850781939],
+                    [-74.85589646223454, 40.494581078958674],
+                    [-74.855872714614094, 40.49464983586023],
+                    [-74.855842453325408, 40.494715163394943],
+                    [-74.85580882708976, 40.494777969608315],
+                    [-74.855772516965075, 40.494836090891191],
+                    [-74.855734072453231, 40.494891267367464],
+                    [-74.855694783572744, 40.494943386990556],
+                    [-74.855650182604577, 40.494995329306462],
+                    [-74.855643805751541, 40.495003728378883],
+                    [-74.855630649346821, 40.495011740472336],
+                    [-74.85561607641597, 40.495018167047306],
+                    [-74.855600412124673, 40.495022864707586],
+                    [-74.855584005990337, 40.495025728634133],
+                    [-74.855567224083401, 40.4950266949241],
+                    [-74.855550242838547, 40.495025719003138],
+                    [-74.85553364823015, 40.4950228003596],
+                    [-74.855517819374327, 40.495018005672065],
+                    [-74.85550311789288, 40.495011444478727],
+                    [-74.855495123267531, 40.495006812808874],
+                    [-74.855422023687652, 40.494974267268283],
+                    [-74.855340135763285, 40.494937116757193],
+                    [-74.855256424735117, 40.494895168733763],
+                    [-74.855154596013605, 40.494848127411181],
+                    [-74.855049182580061, 40.494803156746912],
+                    [-74.854943838585129, 40.494750293557615],
+                    [-74.854820718593686, 40.4946926808733],
+                    [-74.854697708523688, 40.49463506771977],
+                    [-74.854558720750063, 40.494573213739677],
+                    [-74.854427858758726, 40.494518025456024],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      };
+      // 206 Reaville Road Overlay - Block 72, Lot 7
+      const overlay3_GeoJSON = {
+        type: "FeatureCollection",
+        name: "206ReavilleRoadOverlay",
+        crs: {
+          type: "name",
+          properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" },
+        },
+        features: [
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_72_7_Q0436",
+              MUN: "1021",
+              BLOCK: "72",
+              LOT: "7",
+              QCODE: "Q0436",
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "72",
+              HunterdonTaxList_LOT: "7",
+              HunterdonTaxList_QUALIFIER: "Q0436",
+              HunterdonTaxList_PROP_CLASS: "3B",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "206 REAVILLE ROAD",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "16 ANDOVER LANE",
+              HunterdonTaxList_CITY_STATE: "WOODMERE  NY",
+              HunterdonTaxList_ZIP_CODE: "11598",
+              HunterdonTaxList_LAND_VAL: 4800,
+              HunterdonTaxList_IMPRVT_VAL: 0,
+              HunterdonTaxList_NET_VALUE: 4800,
+              HunterdonTaxList_LAST_YR_TX: "128.03",
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: "6.00 AC.",
+              HunterdonTaxList_CALC_ACRE: 6.0,
+              HunterdonTaxList_ADD_LOTS1: null,
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: null,
+              HunterdonTaxList_DEED_BOOK: null,
+              HunterdonTaxList_DEED_PAGE: null,
+              HunterdonTaxList_DEED_DATE: null,
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: null,
+              HunterdonTaxList_SALE_PRICE: 0,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: null,
+              HunterdonTaxList_ZIP5: "11598",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.840415766615934, 40.494783519549166],
+                    [-74.843173176927777, 40.494226385061971],
+                    [-74.843185911707351, 40.494223811987418],
+                    [-74.843997837692569, 40.494033270033754],
+                    [-74.84400879582077, 40.494056343080274],
+                    [-74.844665144779441, 40.495438194612952],
+                    [-74.844668836619604, 40.495446125356452],
+                    [-74.844127204629842, 40.495655602330274],
+                    [-74.843539211046519, 40.495684803165418],
+                    [-74.840586377370443, 40.49583218374152],
+                    [-74.840433901925806, 40.494894989303141],
+                    [-74.840415766615934, 40.494783519549166],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      };
+      // 314-324 Hwy 202 Overlay - Block 72.23, Lots 31.01 & 32
+      const overlay4_GeoJSON = {
+        type: "FeatureCollection",
+        name: "314-324Hwy202Overlay",
+        crs: {
+          type: "name",
+          properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" },
+        },
+        features: [
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_72.23_31.01",
+              MUN: "1021",
+              BLOCK: "72.23",
+              LOT: "31.01",
+              QCODE: null,
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "72.23",
+              HunterdonTaxList_LOT: "31.01",
+              HunterdonTaxList_QUALIFIER: null,
+              HunterdonTaxList_PROP_CLASS: "1",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "324 HWY 202",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "160 HOPPER AVE",
+              HunterdonTaxList_CITY_STATE: "WALDWICK NJ",
+              HunterdonTaxList_ZIP_CODE: "07463",
+              HunterdonTaxList_LAND_VAL: 824000,
+              HunterdonTaxList_IMPRVT_VAL: 0,
+              HunterdonTaxList_NET_VALUE: 824000,
+              HunterdonTaxList_LAST_YR_TX: "22445.76",
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: "12.78",
+              HunterdonTaxList_CALC_ACRE: 12.78,
+              HunterdonTaxList_ADD_LOTS1: null,
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: null,
+              HunterdonTaxList_DEED_BOOK: "02400",
+              HunterdonTaxList_DEED_PAGE: "00694",
+              HunterdonTaxList_DEED_DATE: "170330",
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: "A",
+              HunterdonTaxList_SALE_PRICE: 1075000,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: null,
+              HunterdonTaxList_ZIP5: "07463",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.847059475697407, 40.501692970767841],
+                    [-74.848706836406663, 40.501604115337507],
+                    [-74.848983742999579, 40.50336924591803],
+                    [-74.849006450611142, 40.503513988595628],
+                    [-74.849070470188209, 40.503918357810988],
+                    [-74.848394640866545, 40.504209149876047],
+                    [-74.848603970943742, 40.504483373628076],
+                    [-74.848488227522026, 40.504529360163481],
+                    [-74.84838247561018, 40.504572914495547],
+                    [-74.848313056782828, 40.504601604262078],
+                    [-74.848139773987342, 40.504669381594844],
+                    [-74.84796232234109, 40.504735113279111],
+                    [-74.847793334503024, 40.504807852237406],
+                    [-74.847618816510462, 40.504876319684193],
+                    [-74.847450257996115, 40.504945282314068],
+                    [-74.847282371074002, 40.505013899540714],
+                    [-74.847216457177566, 40.50504083450123],
+                    [-74.84718250507359, 40.504992434012387],
+                    [-74.847723472184057, 40.504771332957191],
+                    [-74.847430378896235, 40.503697811682791],
+                    [-74.84611597161404, 40.502925408657681],
+                    [-74.847059475697407, 40.501692970767841],
+                  ],
+                ],
+              ],
+            },
+          },
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_72.23_32",
+              MUN: "1021",
+              BLOCK: "72.23",
+              LOT: "32",
+              QCODE: null,
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "72.23",
+              HunterdonTaxList_LOT: "32",
+              HunterdonTaxList_QUALIFIER: null,
+              HunterdonTaxList_PROP_CLASS: "1",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "314 HWY 202",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "820 MORRIS TURNPIKE",
+              HunterdonTaxList_CITY_STATE: "SHORT HILLS  NJ",
+              HunterdonTaxList_ZIP_CODE: "07078",
+              HunterdonTaxList_LAND_VAL: 535000,
+              HunterdonTaxList_IMPRVT_VAL: 0,
+              HunterdonTaxList_NET_VALUE: 535000,
+              HunterdonTaxList_LAST_YR_TX: "14573.40",
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: "7.0000",
+              HunterdonTaxList_CALC_ACRE: 7.0,
+              HunterdonTaxList_ADD_LOTS1: null,
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: null,
+              HunterdonTaxList_DEED_BOOK: "02094",
+              HunterdonTaxList_DEED_PAGE: "00639",
+              HunterdonTaxList_DEED_DATE: "040615",
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: "Z",
+              HunterdonTaxList_SALE_PRICE: 1850000,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: "00072    00032",
+              HunterdonTaxList_ZIP5: "07078",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.849070470188209, 40.503918357810988],
+                    [-74.849006450611142, 40.503513988595628],
+                    [-74.848983742999579, 40.50336924591803],
+                    [-74.850571617709917, 40.501545994854872],
+                    [-74.850665007736652, 40.501623763741399],
+                    [-74.850761790560682, 40.501704356536884],
+                    [-74.850771282310532, 40.501757344174813],
+                    [-74.851053005735864, 40.503329932104911],
+                    [-74.850991474895324, 40.503365060640725],
+                    [-74.850825527744888, 40.503459413503798],
+                    [-74.850651135483176, 40.503550531467539],
+                    [-74.850476536154886, 40.50364525321141],
+                    [-74.850294277753974, 40.503736566503136],
+                    [-74.850112147603227, 40.503831309613751],
+                    [-74.849938498461199, 40.503914360918507],
+                    [-74.849763837174635, 40.503997758163749],
+                    [-74.84958265730711, 40.50408083081669],
+                    [-74.84940067311345, 40.50416064714102],
+                    [-74.849344944343827, 40.504184835335302],
+                    [-74.849156924267149, 40.50388103764697],
+                    [-74.849070470188209, 40.503918357810988],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      };
+      // 454 Hwy 202/Case Blvd. Overlay - Block 40, Lot 9
+      const overlay5_GeoJSON = {
+        type: "FeatureCollection",
+        name: "454Hwy202CaseBlvdOverlay",
+        crs: {
+          type: "name",
+          properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" },
+        },
+        features: [
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_40_9_Q0289",
+              MUN: "1021",
+              BLOCK: "40",
+              LOT: "9",
+              QCODE: "Q0289",
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "40",
+              HunterdonTaxList_LOT: "9",
+              HunterdonTaxList_QUALIFIER: "Q0289",
+              HunterdonTaxList_PROP_CLASS: "3B",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "454 HWY 202",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "13 EVERIT DRIVE",
+              HunterdonTaxList_CITY_STATE: "SOMERVILLE  NJ",
+              HunterdonTaxList_ZIP_CODE: "08876",
+              HunterdonTaxList_LAND_VAL: 6700,
+              HunterdonTaxList_IMPRVT_VAL: 0,
+              HunterdonTaxList_NET_VALUE: 6700,
+              HunterdonTaxList_LAST_YR_TX: "179.78",
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: "10.88 AC.",
+              HunterdonTaxList_CALC_ACRE: 10.88,
+              HunterdonTaxList_ADD_LOTS1: null,
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: null,
+              HunterdonTaxList_DEED_BOOK: "02220",
+              HunterdonTaxList_DEED_PAGE: "00328",
+              HunterdonTaxList_DEED_DATE: "081024",
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: "Z",
+              HunterdonTaxList_SALE_PRICE: 1,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: "00040    00009       QFARM",
+              HunterdonTaxList_ZIP5: "08876",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.829081017047798, 40.509814663023839],
+                    [-74.830770202683908, 40.509637586037371],
+                    [-74.831427620087183, 40.511355863371961],
+                    [-74.831301420434585, 40.511405637186755],
+                    [-74.831057334282718, 40.511504818356229],
+                    [-74.830805380386124, 40.51160401972367],
+                    [-74.830560733121246, 40.511703372568164],
+                    [-74.830317317723868, 40.511802378234798],
+                    [-74.830065475239309, 40.511901407450281],
+                    [-74.829821497550242, 40.512000584796191],
+                    [-74.829577837637274, 40.512095643049072],
+                    [-74.82932531933298, 40.512195186835257],
+                    [-74.829080890739164, 40.51229453592039],
+                    [-74.828844198326138, 40.512389915928857],
+                    [-74.828600780261993, 40.512488917983333],
+                    [-74.828244141772629, 40.512627186930644],
+                    [-74.828463804275643, 40.511920723687012],
+                    [-74.828502038339437, 40.511786619594488],
+                    [-74.828540255843748, 40.511648912120393],
+                    [-74.828578567701939, 40.51150760094923],
+                    [-74.828616435686527, 40.511367491561352],
+                    [-74.828662019855813, 40.511219468915876],
+                    [-74.828707915821695, 40.511066469391494],
+                    [-74.828753793489781, 40.510909524244937],
+                    [-74.828799301620549, 40.510746059578807],
+                    [-74.828852880014679, 40.510578112021442],
+                    [-74.82889870252508, 40.510410014481792],
+                    [-74.828951816584478, 40.510239151055551],
+                    [-74.829005356463426, 40.510063482436713],
+                    [-74.829058784810172, 40.509887986125662],
+                    [-74.829081017047798, 40.509814663023839],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      };
+      // Hwy 202/S. Main St. Overlay - Block 70, Lots 3, 12, 13 & 14
+      const overlay6_GeoJSON = {
+        type: "FeatureCollection",
+        name: "Hwy202-SMainStOverlay",
+        crs: {
+          type: "name",
+          properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" },
+        },
+        features: [
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_70_3",
+              MUN: "1021",
+              BLOCK: "70",
+              LOT: "3",
+              QCODE: null,
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "70",
+              HunterdonTaxList_LOT: "3",
+              HunterdonTaxList_QUALIFIER: null,
+              HunterdonTaxList_PROP_CLASS: "1",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "282 SOUTH MAIN ST",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "1511 RT 22E",
+              HunterdonTaxList_CITY_STATE: "ANNANDALE NJ",
+              HunterdonTaxList_ZIP_CODE: "08801",
+              HunterdonTaxList_LAND_VAL: 721500,
+              HunterdonTaxList_IMPRVT_VAL: 0,
+              HunterdonTaxList_NET_VALUE: 721500,
+              HunterdonTaxList_LAST_YR_TX: "19653.66",
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: "4.8100",
+              HunterdonTaxList_CALC_ACRE: 4.81,
+              HunterdonTaxList_ADD_LOTS1: null,
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: "10",
+              HunterdonTaxList_DEED_BOOK: "02054",
+              HunterdonTaxList_DEED_PAGE: "00585",
+              HunterdonTaxList_DEED_DATE: "021231",
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: null,
+              HunterdonTaxList_SALE_PRICE: 200000,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: "00070    00003",
+              HunterdonTaxList_ZIP5: "08801",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.861209290739026, 40.495386114049751],
+                    [-74.861196080942122, 40.49524855539201],
+                    [-74.861157284900926, 40.494845144261646],
+                    [-74.863086833671687, 40.494754859000857],
+                    [-74.863094195946303, 40.494786747874542],
+                    [-74.863116030998114, 40.49493920535965],
+                    [-74.863116000661023, 40.495100310009782],
+                    [-74.863108545461088, 40.495259721377046],
+                    [-74.863086694063824, 40.495416948897265],
+                    [-74.863049754502413, 40.495568389517167],
+                    [-74.863005509343978, 40.495719510822191],
+                    [-74.862966245712897, 40.49581519805632],
+                    [-74.862128746681691, 40.495855569848736],
+                    [-74.861271363326168, 40.49589702713179],
+                    [-74.861209290739026, 40.495386114049751],
+                  ],
+                ],
+              ],
+            },
+          },
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_70_13",
+              MUN: "1021",
+              BLOCK: "70",
+              LOT: "13",
+              QCODE: null,
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "70",
+              HunterdonTaxList_LOT: "13",
+              HunterdonTaxList_QUALIFIER: null,
+              HunterdonTaxList_PROP_CLASS: "1",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "298 SOUTH MAIN ST",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "1511 RT 22E",
+              HunterdonTaxList_CITY_STATE: "ANNANDALE NJ",
+              HunterdonTaxList_ZIP_CODE: "08801",
+              HunterdonTaxList_LAND_VAL: 232500,
+              HunterdonTaxList_IMPRVT_VAL: 0,
+              HunterdonTaxList_NET_VALUE: 232500,
+              HunterdonTaxList_LAST_YR_TX: "6333.30",
+              HunterdonTaxList_BLDG_DESC: null,
+              HunterdonTaxList_LAND_DESC: "1.550",
+              HunterdonTaxList_CALC_ACRE: 1.55,
+              HunterdonTaxList_ADD_LOTS1: null,
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: null,
+              HunterdonTaxList_BLDG_CLASS: "10",
+              HunterdonTaxList_DEED_BOOK: "02038",
+              HunterdonTaxList_DEED_PAGE: "00225",
+              HunterdonTaxList_DEED_DATE: "020517",
+              HunterdonTaxList_YR_CONSTR: "1936",
+              HunterdonTaxList_SALES_CODE: null,
+              HunterdonTaxList_SALE_PRICE: 450000,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: "00070    00013",
+              HunterdonTaxList_ZIP5: "08801",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.861602018619948, 40.493209032454324],
+                    [-74.862138479963093, 40.493193455642476],
+                    [-74.862695836061874, 40.493177297430954],
+                    [-74.862721472667047, 40.493284790888666],
+                    [-74.862767645290972, 40.493449868292338],
+                    [-74.862813270484736, 40.493617521389574],
+                    [-74.862859466673072, 40.493786887469923],
+                    [-74.862861295000954, 40.493792543087828],
+                    [-74.861701955379573, 40.49384490197005],
+                    [-74.861602018619948, 40.493209032454324],
+                  ],
+                ],
+              ],
+            },
+          },
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_70_12",
+              MUN: "1021",
+              BLOCK: "70",
+              LOT: "12",
+              QCODE: null,
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "70",
+              HunterdonTaxList_LOT: "12",
+              HunterdonTaxList_QUALIFIER: null,
+              HunterdonTaxList_PROP_CLASS: "4A",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "253 HWY 202/31 SOUTH",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "1511 RT 22E",
+              HunterdonTaxList_CITY_STATE: "ANNANDALE NJ",
+              HunterdonTaxList_ZIP_CODE: "08801",
+              HunterdonTaxList_LAND_VAL: 446500,
+              HunterdonTaxList_IMPRVT_VAL: 453500,
+              HunterdonTaxList_NET_VALUE: 900000,
+              HunterdonTaxList_LAST_YR_TX: "24516.00",
+              HunterdonTaxList_BLDG_DESC: "1SF,1SS",
+              HunterdonTaxList_LAND_DESC: "1.3100",
+              HunterdonTaxList_CALC_ACRE: 1.31,
+              HunterdonTaxList_ADD_LOTS1: "JAKE'S",
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: "639",
+              HunterdonTaxList_BLDG_CLASS: "10",
+              HunterdonTaxList_DEED_BOOK: "02523",
+              HunterdonTaxList_DEED_PAGE: "00689",
+              HunterdonTaxList_DEED_DATE: "210122",
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: "A",
+              HunterdonTaxList_SALE_PRICE: 1137000,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: "00070    00012",
+              HunterdonTaxList_ZIP5: "08801",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.860301498574643, 40.494111777935004],
+                    [-74.861034018299179, 40.494069517323659],
+                    [-74.860339112695812, 40.494883383863503],
+                    [-74.860313387581471, 40.494884664582401],
+                    [-74.859920534187907, 40.494903045304859],
+                    [-74.859628786286464, 40.49491664940382],
+                    [-74.85968674451388, 40.494849042582516],
+                    [-74.859793789575136, 40.494715228118984],
+                    [-74.859907674983845, 40.494578474219594],
+                    [-74.860021691268443, 40.494445324116306],
+                    [-74.860136375855063, 40.49431148553645],
+                    [-74.860251377447042, 40.494173699294372],
+                    [-74.860301498574643, 40.494111777935004],
+                  ],
+                ],
+              ],
+            },
+          },
+          {
+            type: "Feature",
+            properties: {
+              PAMS_PIN: "1021_70_14",
+              MUN: "1021",
+              BLOCK: "70",
+              LOT: "14",
+              QCODE: null,
+              LASTUPDATE: null,
+              HunterdonTaxList_CD_CODE: "1021",
+              HunterdonTaxList_BLOCK: "70",
+              HunterdonTaxList_LOT: "14",
+              HunterdonTaxList_QUALIFIER: null,
+              HunterdonTaxList_PROP_CLASS: "4A",
+              HunterdonTaxList_COUNTY: "HUNTERDON",
+              HunterdonTaxList_MUN_NAME: "RARITAN TWP",
+              HunterdonTaxList_PROP_LOC: "249 HWY 202/31 SOUTH",
+              HunterdonTaxList_OWNER_NAME: null,
+              HunterdonTaxList_ST_ADDRESS: "1511 RT 22E",
+              HunterdonTaxList_CITY_STATE: "ANNANDALE NJ",
+              HunterdonTaxList_ZIP_CODE: "08801",
+              HunterdonTaxList_LAND_VAL: 881000,
+              HunterdonTaxList_IMPRVT_VAL: 100000,
+              HunterdonTaxList_NET_VALUE: 981000,
+              HunterdonTaxList_LAST_YR_TX: "26722.44",
+              HunterdonTaxList_BLDG_DESC: "1S CB",
+              HunterdonTaxList_LAND_DESC: "6.540",
+              HunterdonTaxList_CALC_ACRE: 6.54,
+              HunterdonTaxList_ADD_LOTS1: "AUTO DEALER",
+              HunterdonTaxList_ADD_LOTS2: null,
+              HunterdonTaxList_FAC_NAME: null,
+              HunterdonTaxList_PROP_USE: "030",
+              HunterdonTaxList_BLDG_CLASS: "10",
+              HunterdonTaxList_DEED_BOOK: "02006",
+              HunterdonTaxList_DEED_PAGE: "00403",
+              HunterdonTaxList_DEED_DATE: "010328",
+              HunterdonTaxList_YR_CONSTR: "0000",
+              HunterdonTaxList_SALES_CODE: null,
+              HunterdonTaxList_SALE_PRICE: 1100000,
+              HunterdonTaxList_DWELL: "01",
+              HunterdonTaxList_COMM_DWELL: null,
+              HunterdonTaxList_OLD_PROPID: "00070    00014",
+              HunterdonTaxList_ZIP5: "08801",
+              HunterdonTaxList_ZIP_PLUS4: null,
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [-74.860301498574643, 40.494111777935004],
+                    [-74.860365685437216, 40.494032484599629],
+                    [-74.86048772650841, 40.493887641356991],
+                    [-74.860610083577043, 40.493738679318803],
+                    [-74.860732215714492, 40.493589890770536],
+                    [-74.860853564145287, 40.493441789915153],
+                    [-74.860983445888962, 40.493292804885151],
+                    [-74.861037470453155, 40.4932253807725],
+                    [-74.861602018619948, 40.493209032454324],
+                    [-74.861701955379573, 40.49384490197005],
+                    [-74.862861295000954, 40.493792543087828],
+                    [-74.862911929628623, 40.49395143079785],
+                    [-74.862917030569434, 40.49398075278733],
+                    [-74.862941849159881, 40.494123935286424],
+                    [-74.863086833671687, 40.494754859000857],
+                    [-74.861157284900926, 40.494845144261646],
+                    [-74.860610526926777, 40.494870698798437],
+                    [-74.860339112695812, 40.494883383863503],
+                    [-74.861034018299179, 40.494069517323659],
+                    [-74.860301498574643, 40.494111777935004],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      };
+      // ===== END GEOJSON DATA SECTION =====
+
+      // Simplified township boundaries for Hunterdon County
+      // These are approximate boundaries based on general knowledge - you may want to replace with official GeoJSON
+      // Township boundaries with real GeoJSON data
+      // Full township GeoJSON with both Raritan Township & Flemington Borough
+      const townshipBoundaries = {
+        "Raritan Township": {
+          color: "#6666ee",
+          geojson: {
+            type: "FeatureCollection",
+            crs: {
+              type: "name",
+              properties: {
+                name: "EPSG:4326",
+              },
+            },
+            features: [
+              {
+                type: "Feature",
+                id: 241,
+                geometry: {
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [-74.8684067929962, 40.5753079863753],
+                      [-74.8684032293795, 40.5752701778209],
+                      [-74.8683508746664, 40.5750387415401],
+                      [-74.8681975502137, 40.5745073700462],
+                      [-74.868075550015, 40.5741865830209],
+                      [-74.8679852387862, 40.5738866130738],
+                      [-74.8678800316934, 40.573285801212],
+                      [-74.8678192552745, 40.5729095606124],
+                      [-74.8677189188472, 40.5725008621403],
+                      [-74.8677017601269, 40.5724309169114],
+                      [-74.867549526229, 40.5720374810573],
+                      [-74.8674885036717, 40.5718655858919],
+                      [-74.8674148858359, 40.5716089889777],
+                      [-74.8673911586343, 40.5713844891561],
+                      [-74.867386579023, 40.571100029652],
+                      [-74.8674037413365, 40.5708877526387],
+                      [-74.8674360797884, 40.5706726813531],
+                      [-74.8674634496585, 40.5704903759183],
+                      [-74.8674878685628, 40.5703281725416],
+                      [-74.8675345126856, 40.569681720895],
+                      [-74.867540915877, 40.5696412103696],
+                      [-74.8675374528715, 40.5695808297363],
+                      [-74.8675298576158, 40.5694492533198],
+                      [-74.8674864752758, 40.5692905330077],
+                      [-74.8674344673124, 40.5691405699821],
+                      [-74.867361657062, 40.5690112882301],
+                      [-74.8672600755697, 40.5688671364312],
+                      [-74.8670634190827, 40.5686361584021],
+                      [-74.8668579079018, 40.5684509957249],
+                      [-74.8665892218004, 40.5682591710565],
+                      [-74.8663403929583, 40.5681110386199],
+                      [-74.8661118004645, 40.5679901285058],
+                      [-74.8658593307506, 40.5678601805631],
+                      [-74.8656786049868, 40.5678034620933],
+                      [-74.8653504953292, 40.5677243712843],
+                      [-74.8651443499378, 40.567692767553],
+                      [-74.8649818114653, 40.5676773331514],
+                      [-74.8646450312686, 40.5676783963223],
+                      [-74.8644420380655, 40.5676838411493],
+                      [-74.863825988715, 40.5677368959468],
+                      [-74.8634073630129, 40.5677534760741],
+                      [-74.8626453257506, 40.5677431889848],
+                      [-74.8624397094669, 40.5677294223662],
+                      [-74.8622635139071, 40.5677177861797],
+                      [-74.8621167732071, 40.5677079521948],
+                      [-74.8618746080678, 40.5676919118303],
+                      [-74.8611676402274, 40.5676601395321],
+                      [-74.8611174648272, 40.5676609822898],
+                      [-74.8605887730448, 40.567619591616],
+                      [-74.8603365297063, 40.567569923456],
+                      [-74.8600001986673, 40.5675069840144],
+                      [-74.8595979708123, 40.5674533346669],
+                      [-74.8591958552467, 40.5674134096543],
+                      [-74.858747826787, 40.5673772214281],
+                      [-74.8582350019475, 40.5673201504314],
+                      [-74.8579741716131, 40.5672799469206],
+                      [-74.8576677679478, 40.5671985428409],
+                      [-74.8574454762375, 40.5671352154467],
+                      [-74.8571252690595, 40.5669965631764],
+                      [-74.8569297588228, 40.5669125915537],
+                      [-74.8566216501551, 40.5667808993417],
+                      [-74.856436325017, 40.5666897028295],
+                      [-74.8563087885012, 40.5666079083782],
+                      [-74.8562123525588, 40.5665395790695],
+                      [-74.856100988413, 40.566453122229],
+                      [-74.8560315127089, 40.5663707911158],
+                      [-74.8559679263599, 40.5662658223482],
+                      [-74.855904232213, 40.5661334034613],
+                      [-74.8558585115583, 40.5659962900014],
+                      [-74.8558164739962, 40.565807007795],
+                      [-74.8557976677658, 40.5656341248655],
+                      [-74.8558063769324, 40.5653889345603],
+                      [-74.8559905594135, 40.564293925806],
+                      [-74.8561941329282, 40.5633134650809],
+                      [-74.8563511449651, 40.5631173918221],
+                      [-74.856532697179, 40.5629742523573],
+                      [-74.8565839712188, 40.5629437328321],
+                      [-74.8566672881648, 40.5628944208498],
+                      [-74.8568306989015, 40.5628057167885],
+                      [-74.8570017525046, 40.5626991448248],
+                      [-74.8571441300872, 40.5626487987567],
+                      [-74.8573644508938, 40.5625607693098],
+                      [-74.8575151477743, 40.562511604454],
+                      [-74.8577347068095, 40.5624498470326],
+                      [-74.857858313196, 40.5624029621558],
+                      [-74.8579324637328, 40.5623632572912],
+                      [-74.8580063537582, 40.562301264288],
+                      [-74.8580516135772, 40.5622433120145],
+                      [-74.8581003040622, 40.5621807108365],
+                      [-74.8581136000267, 40.5621429242103],
+                      [-74.8581313040243, 40.5620879677628],
+                      [-74.8581329883655, 40.5620191704545],
+                      [-74.8581283764148, 40.5619574200859],
+                      [-74.8581078912331, 40.5618957194794],
+                      [-74.857972054284, 40.5616465012721],
+                      [-74.8579559421011, 40.5616218454902],
+                      [-74.8577124052343, 40.5610056397611],
+                      [-74.8575542927611, 40.56060776076],
+                      [-74.857443292433, 40.560127520127],
+                      [-74.8573542891513, 40.5598649529643],
+                      [-74.857270361351, 40.5596292989308],
+                      [-74.8571314566552, 40.5592481878079],
+                      [-74.8570546462068, 40.5590377118106],
+                      [-74.8570235788711, 40.5589486190826],
+                      [-74.8569249923619, 40.5587715088682],
+                      [-74.8568680903768, 40.5586903469601],
+                      [-74.8568247260031, 40.5586304457903],
+                      [-74.8567283466546, 40.5584895359751],
+                      [-74.8566095282886, 40.5582842124433],
+                      [-74.8565484158998, 40.5581354518769],
+                      [-74.8565135666567, 40.5580523556955],
+                      [-74.8564711473107, 40.5578991181332],
+                      [-74.856450180632, 40.5577663748884],
+                      [-74.8564287315579, 40.5574747752128],
+                      [-74.856430817446, 40.5573321881097],
+                      [-74.8564498150176, 40.5571205922447],
+                      [-74.8564945160845, 40.5569171523217],
+                      [-74.8565094523727, 40.5568493297766],
+                      [-74.8565154980346, 40.5568218603057],
+                      [-74.8565790601291, 40.556591597609],
+                      [-74.8566425099343, 40.5563877431601],
+                      [-74.856065139345, 40.5560537718507],
+                      [-74.8558198247122, 40.5559239699972],
+                      [-74.8556296100441, 40.5557939720101],
+                      [-74.8555711782281, 40.555735818221],
+                      [-74.8555342089609, 40.5556800142875],
+                      [-74.8555124984771, 40.555617108029],
+                      [-74.8555028775204, 40.5555401104371],
+                      [-74.8555094513917, 40.5554699256633],
+                      [-74.8555173592611, 40.5553861757319],
+                      [-74.8555349869019, 40.5552555378605],
+                      [-74.8555342960975, 40.5551249823195],
+                      [-74.855530736074, 40.5551117891549],
+                      [-74.8554833005354, 40.5550096802513],
+                      [-74.8554572377141, 40.5549745957859],
+                      [-74.8554226004734, 40.5549309456182],
+                      [-74.8553557289853, 40.5548760849463],
+                      [-74.8551329827275, 40.5547391586448],
+                      [-74.8548939509118, 40.5545779320142],
+                      [-74.85468367866, 40.5544581502456],
+                      [-74.8545521473361, 40.5544058752925],
+                      [-74.8544823473402, 40.5543755368267],
+                      [-74.8542630955288, 40.5543202921173],
+                      [-74.8542516033814, 40.5543182684132],
+                      [-74.8541206954883, 40.5542951715635],
+                      [-74.8538329130005, 40.5542591591633],
+                      [-74.853762450048, 40.5542463357601],
+                      [-74.8536891493174, 40.5542278664516],
+                      [-74.8535870674635, 40.5541976248246],
+                      [-74.8535161921842, 40.5541681674138],
+                      [-74.8534425438056, 40.5541310048776],
+                      [-74.8533595798975, 40.5540543686845],
+                      [-74.8532488616405, 40.5539147344513],
+                      [-74.8532200984834, 40.553878944353],
+                      [-74.8532070064364, 40.553846207218],
+                      [-74.8531996249797, 40.553811257285],
+                      [-74.8531960856175, 40.5537609775639],
+                      [-74.8532048729376, 40.5537003942242],
+                      [-74.853222969499, 40.5536514487811],
+                      [-74.853234352052, 40.5534410575694],
+                      [-74.8532338579786, 40.5533947492725],
+                      [-74.8532146061837, 40.5532994160683],
+                      [-74.8530956934946, 40.5530177204477],
+                      [-74.8529670421695, 40.5528276582484],
+                      [-74.8529320761454, 40.5527412942699],
+                      [-74.8529142697398, 40.5526264112767],
+                      [-74.852922324933, 40.5525773046496],
+                      [-74.8529705482941, 40.5524466005508],
+                      [-74.8530069875552, 40.5523818149228],
+                      [-74.8530511738875, 40.5523116793948],
+                      [-74.8531874519093, 40.552159075071],
+                      [-74.8533537983404, 40.5520096449601],
+                      [-74.8534009778591, 40.5519547627831],
+                      [-74.8534353914193, 40.5518947866487],
+                      [-74.8534312654572, 40.5516849646311],
+                      [-74.8534216121612, 40.5515808724464],
+                      [-74.8534150517647, 40.5515102064132],
+                      [-74.8533683941671, 40.5513632935046],
+                      [-74.8532944259883, 40.5512446294828],
+                      [-74.8531836924599, 40.5511214391724],
+                      [-74.8529472424024, 40.5509828472426],
+                      [-74.8527054159279, 40.550847868532],
+                      [-74.852616087456, 40.5507779764388],
+                      [-74.8525698790161, 40.5507366115013],
+                      [-74.8524934350804, 40.5506601468433],
+                      [-74.8524615287181, 40.5506010596191],
+                      [-74.8524179469521, 40.5505049217832],
+                      [-74.8523916388907, 40.5504152914385],
+                      [-74.8523623250663, 40.5502949268153],
+                      [-74.8523193927823, 40.5501097625458],
+                      [-74.8523090675464, 40.5498975711744],
+                      [-74.8523152874814, 40.5498001013035],
+                      [-74.852353716511, 40.549661849976],
+                      [-74.8524087077794, 40.5495523998105],
+                      [-74.8524703277163, 40.5494446320273],
+                      [-74.8524994322332, 40.5493332013373],
+                      [-74.852508933714, 40.5492370937626],
+                      [-74.8524999990701, 40.5491667918035],
+                      [-74.8524735068541, 40.5490419703887],
+                      [-74.8524442855562, 40.5489391184493],
+                      [-74.8523936520153, 40.548829304649],
+                      [-74.8521932387737, 40.5485058013849],
+                      [-74.8518952846619, 40.5481303006645],
+                      [-74.8517482466196, 40.5479450969627],
+                      [-74.851278328013, 40.5473508400177],
+                      [-74.8510096481997, 40.5470253466436],
+                      [-74.8508856627242, 40.5469052680831],
+                      [-74.8505838539416, 40.5466298078217],
+                      [-74.8503624246139, 40.5464069177759],
+                      [-74.8503011074093, 40.5463382845632],
+                      [-74.849944235493, 40.54602625905],
+                      [-74.8496954758211, 40.5458058674243],
+                      [-74.8496440544576, 40.5457578186319],
+                      [-74.8494423530319, 40.5455700321612],
+                      [-74.8493752318122, 40.5454849728678],
+                      [-74.8492788129378, 40.5453088912477],
+                      [-74.8492660909968, 40.5452843878175],
+                      [-74.8492147639564, 40.5451850333339],
+                      [-74.8492093111826, 40.5451744260387],
+                      [-74.8490736197606, 40.5450303621623],
+                      [-74.8488699141936, 40.5447813371601],
+                      [-74.8485712863453, 40.5444844226269],
+                      [-74.8481644860656, 40.544172515447],
+                      [-74.8479066075952, 40.5440374096923],
+                      [-74.8479019866614, 40.5440343487538],
+                      [-74.8476811547135, 40.543860864169],
+                      [-74.8475512358655, 40.5437255372932],
+                      [-74.8474905672445, 40.5436490489294],
+                      [-74.8472490767399, 40.5432863778847],
+                      [-74.8468095158, 40.542654787139],
+                      [-74.8464697460101, 40.5421630604076],
+                      [-74.8461460659452, 40.5417414494317],
+                      [-74.8458797927186, 40.5413219165601],
+                      [-74.8457988527149, 40.5411929463074],
+                      [-74.8457161044025, 40.5411111978446],
+                      [-74.8454977293468, 40.5409368503067],
+                      [-74.8448650926046, 40.5402085420656],
+                      [-74.8443680323, 40.5396879336719],
+                      [-74.8439227715497, 40.5392335723968],
+                      [-74.8438535716284, 40.5391548567625],
+                      [-74.8436056896106, 40.538900298576],
+                      [-74.8434643774298, 40.5387780406413],
+                      [-74.843274297509, 40.5386319074258],
+                      [-74.8431705376021, 40.5385490102812],
+                      [-74.8430064198913, 40.5384488081431],
+                      [-74.8429029043261, 40.5384141157419],
+                      [-74.8426616554684, 40.5383796383712],
+                      [-74.8422452845375, 40.538359076327],
+                      [-74.8420434771106, 40.5383401288473],
+                      [-74.8417705087402, 40.5383227365389],
+                      [-74.8413826647096, 40.5382726042568],
+                      [-74.8410304793041, 40.5382223388116],
+                      [-74.8405952859732, 40.5381934259914],
+                      [-74.8402432380099, 40.5381915533583],
+                      [-74.8400288954916, 40.5382122513102],
+                      [-74.8398826344919, 40.5382411757281],
+                      [-74.8395793695402, 40.5383021027944],
+                      [-74.8394054224636, 40.5383206215531],
+                      [-74.8391799534121, 40.5383183741246],
+                      [-74.8385192658768, 40.5382750175816],
+                      [-74.8377005781578, 40.5381871540698],
+                      [-74.8374231586351, 40.5381574390671],
+                      [-74.8367900170397, 40.5380959841451],
+                      [-74.8363350428062, 40.5380611010889],
+                      [-74.8359395666889, 40.5380591772498],
+                      [-74.8353984997152, 40.5380550667333],
+                      [-74.8347365015379, 40.5380655788956],
+                      [-74.834644671258, 40.5380786914471],
+                      [-74.8345175156278, 40.5381005268057],
+                      [-74.83444424544, 40.5381125709308],
+                      [-74.8343814235572, 40.538112752528],
+                      [-74.8343132854446, 40.5380930478685],
+                      [-74.8342677857755, 40.5380599084178],
+                      [-74.83422401177, 40.5380267361814],
+                      [-74.8341853375004, 40.5379842990431],
+                      [-74.8341711944245, 40.5379404186546],
+                      [-74.8341522929726, 40.5376194597913],
+                      [-74.8341284462951, 40.537215669549],
+                      [-74.8341056281886, 40.5366061291301],
+                      [-74.8341037192686, 40.5361274702491],
+                      [-74.8341616830623, 40.5354830539648],
+                      [-74.8342230721322, 40.5352166003543],
+                      [-74.8342401374276, 40.5351393587856],
+                      [-74.834260726814, 40.535054200906],
+                      [-74.8343018813321, 40.5349156180572],
+                      [-74.8344461902926, 40.5344732377896],
+                      [-74.834621524368, 40.5341278899869],
+                      [-74.834726409864, 40.5336231449578],
+                      [-74.8347740565067, 40.5333939829573],
+                      [-74.8348401302908, 40.5329998677354],
+                      [-74.8348693174526, 40.5325390992112],
+                      [-74.8349068778113, 40.5323873237603],
+                      [-74.8350012449336, 40.5320542056897],
+                      [-74.8352408750272, 40.5314731120988],
+                      [-74.8353735651778, 40.5311639013492],
+                      [-74.8354872847063, 40.5308600448207],
+                      [-74.8355563310156, 40.5307241536581],
+                      [-74.8356014408159, 40.5306653321971],
+                      [-74.835716589564, 40.5305114359042],
+                      [-74.8360052119766, 40.5302693840594],
+                      [-74.836362292302, 40.5299981166094],
+                      [-74.8365600079028, 40.5298591047592],
+                      [-74.836569103345, 40.5298504860245],
+                      [-74.836665840223, 40.5297994201867],
+                      [-74.8367012796593, 40.5297782068674],
+                      [-74.8368301932925, 40.5297299840767],
+                      [-74.837077541711, 40.5296601136452],
+                      [-74.8371882384085, 40.5296091705633],
+                      [-74.837222193828, 40.5295865895695],
+                      [-74.8372861853172, 40.5295196692966],
+                      [-74.8373003535459, 40.52949697971],
+                      [-74.8373124879887, 40.529477372203],
+                      [-74.8373376920207, 40.5293452035138],
+                      [-74.8373683811657, 40.5292092314417],
+                      [-74.8374202409071, 40.5291052873138],
+                      [-74.8375293269253, 40.5289558542465],
+                      [-74.8375518611642, 40.5289225170471],
+                      [-74.8375978531101, 40.5288539198606],
+                      [-74.8376297109633, 40.5287931050566],
+                      [-74.8376490265386, 40.5287494569429],
+                      [-74.8376745377943, 40.5286785305752],
+                      [-74.8376779055783, 40.5286112652679],
+                      [-74.8376720117318, 40.5285337327255],
+                      [-74.837652059251, 40.5283644461105],
+                      [-74.8375950952822, 40.528146375244],
+                      [-74.8375832294356, 40.5280904923322],
+                      [-74.8375405298152, 40.5278902239098],
+                      [-74.8375341904042, 40.527860211419],
+                      [-74.8375057847766, 40.5277338549639],
+                      [-74.8374568876791, 40.5275821649047],
+                      [-74.8373088336422, 40.5272705060931],
+                      [-74.8371493880691, 40.527018420271],
+                      [-74.8370226636303, 40.5268781035343],
+                      [-74.8368072970325, 40.5266800397049],
+                      [-74.8365739937734, 40.5264055218639],
+                      [-74.8359559483664, 40.5256707798346],
+                      [-74.835862182217, 40.5255808205961],
+                      [-74.8356686994779, 40.5254417135471],
+                      [-74.8353703572939, 40.5254238761027],
+                      [-74.8352272673473, 40.5254270389497],
+                      [-74.8350964735402, 40.5254392519623],
+                      [-74.8348995295923, 40.5254665902293],
+                      [-74.8347094730276, 40.5254976812893],
+                      [-74.8346312746821, 40.5255056252703],
+                      [-74.8345961963686, 40.5255057263283],
+                      [-74.8345722508764, 40.5255057959764],
+                      [-74.8345004072132, 40.5254818131264],
+                      [-74.8344138644171, 40.5254403738441],
+                      [-74.8343545854898, 40.5253890745337],
+                      [-74.8342635924397, 40.5253330664141],
+                      [-74.8341664665912, 40.5252897649713],
+                      [-74.8340229400633, 40.5252500312725],
+                      [-74.8338467750462, 40.5252263494579],
+                      [-74.8337391676549, 40.5251993805026],
+                      [-74.8336419286187, 40.525154539879],
+                      [-74.8335277635259, 40.5250761177086],
+                      [-74.8333477950418, 40.5249206845029],
+                      [-74.833229202153, 40.5248083048505],
+                      [-74.8331537993647, 40.5246992299202],
+                      [-74.8330998178026, 40.5244468278339],
+                      [-74.8330007426099, 40.5242566797807],
+                      [-74.8329265211062, 40.5240731349256],
+                      [-74.8328805992289, 40.5239454548142],
+                      [-74.832831920422, 40.5235806599845],
+                      [-74.8328257175549, 40.5235774110121],
+                      [-74.832789350159, 40.5235413349793],
+                      [-74.8325097917476, 40.5232774020725],
+                      [-74.8320653188197, 40.5229585444368],
+                      [-74.8314325176858, 40.5225710488904],
+                      [-74.8312441427674, 40.5225082870284],
+                      [-74.831143361674, 40.5224746188512],
+                      [-74.8309150907771, 40.5223892960143],
+                      [-74.830720015325, 40.5223389052997],
+                      [-74.8305435826099, 40.5223047385517],
+                      [-74.8303753110892, 40.5222844665689],
+                      [-74.8301977887177, 40.5222776175094],
+                      [-74.829650846762, 40.522289280713],
+                      [-74.8292766481405, 40.522294136511],
+                      [-74.8289276778055, 40.5222863731066],
+                      [-74.8285584297995, 40.5222519017773],
+                      [-74.8283838251561, 40.5222235741037],
+                      [-74.8281874749945, 40.5221841636278],
+                      [-74.8279923519316, 40.5221159248742],
+                      [-74.8277332221082, 40.5220234909599],
+                      [-74.8274186563502, 40.5219001670136],
+                      [-74.8271724802331, 40.521785568457],
+                      [-74.8270180059368, 40.5216950877593],
+                      [-74.8267991269263, 40.5215270471713],
+                      [-74.8266137281264, 40.5213568524003],
+                      [-74.8264563630515, 40.5212706615816],
+                      [-74.8263334923853, 40.5212205534163],
+                      [-74.8261943586191, 40.5211849302226],
+                      [-74.8260895899042, 40.5211586261212],
+                      [-74.825929602647, 40.5211324770209],
+                      [-74.8256735414685, 40.5211073126078],
+                      [-74.8251598964672, 40.5210548730028],
+                      [-74.824267721168, 40.5209950924995],
+                      [-74.8232919504452, 40.5208981514539],
+                      [-74.822007106264, 40.5207397776688],
+                      [-74.8218902354455, 40.5207401033992],
+                      [-74.8215363073084, 40.520754649277],
+                      [-74.821136092578, 40.5207710252505],
+                      [-74.820965244689, 40.5207747667103],
+                      [-74.8207115990803, 40.5207655062727],
+                      [-74.8204527504295, 40.5207284788499],
+                      [-74.8204079721075, 40.5207222619721],
+                      [-74.8201748970206, 40.5206892805516],
+                      [-74.8200352539097, 40.5206586195204],
+                      [-74.8199992359583, 40.5206489192959],
+                      [-74.8198344507993, 40.5206037519456],
+                      [-74.8195649005185, 40.5205097904026],
+                      [-74.819161485989, 40.5203520459954],
+                      [-74.8190438992132, 40.5202998570984],
+                      [-74.8188923462383, 40.520222726034],
+                      [-74.8187698187285, 40.5201298941221],
+                      [-74.8186457488113, 40.5200147769644],
+                      [-74.8184812241637, 40.5198417669278],
+                      [-74.8183507959709, 40.5197361099412],
+                      [-74.8182252591049, 40.5196453444461],
+                      [-74.8178951506959, 40.5194624957998],
+                      [-74.8178063225857, 40.5194133279835],
+                      [-74.8175424873867, 40.5193167657019],
+                      [-74.8174382702373, 40.5192843039504],
+                      [-74.8173475251223, 40.519255893759],
+                      [-74.8172017689759, 40.5192401525015],
+                      [-74.8170070393751, 40.519236240234],
+                      [-74.8168647067082, 40.5192522498676],
+                      [-74.8166597695509, 40.5192730438108],
+                      [-74.8165799919671, 40.5192818544315],
+                      [-74.8164182170625, 40.5193020064511],
+                      [-74.8161263759863, 40.5193155160176],
+                      [-74.8159595489566, 40.5193169869574],
+                      [-74.8157605739178, 40.519312755103],
+                      [-74.8154991659667, 40.5192803356887],
+                      [-74.8151495075222, 40.5192147203687],
+                      [-74.8147364765276, 40.5191581983375],
+                      [-74.8143356653158, 40.519122065978],
+                      [-74.8134456055491, 40.5191153968783],
+                      [-74.813249532967, 40.5190852111015],
+                      [-74.8130714446569, 40.5190319989313],
+                      [-74.8125016136278, 40.5188808313945],
+                      [-74.812169984371, 40.5188000595616],
+                      [-74.8118702668663, 40.5187437434145],
+                      [-74.8115037802815, 40.518685547213],
+                      [-74.8110222365768, 40.5185991651637],
+                      [-74.8103133472401, 40.5183926075822],
+                      [-74.8097881795485, 40.5182209086221],
+                      [-74.8095740652023, 40.518154227625],
+                      [-74.8092850870568, 40.5180855224457],
+                      [-74.8089693202513, 40.5180028061185],
+                      [-74.8087712992233, 40.51796251495],
+                      [-74.8086053830853, 40.5179425346188],
+                      [-74.8083915876409, 40.5179370939419],
+                      [-74.8079652858347, 40.5179565955607],
+                      [-74.8075780553533, 40.5180329254584],
+                      [-74.8072066998997, 40.5180884862321],
+                      [-74.8069576374956, 40.5181191791693],
+                      [-74.8067578872107, 40.5181413139959],
+                      [-74.8066528948153, 40.5181424708277],
+                      [-74.8065333793566, 40.5181377922829],
+                      [-74.8064236959587, 40.5181197186601],
+                      [-74.8061854492707, 40.518053094926],
+                      [-74.8059202800735, 40.5179354276619],
+                      [-74.8054997014339, 40.5177183028307],
+                      [-74.8052345205586, 40.5176210306182],
+                      [-74.8048756498909, 40.5174547178149],
+                      [-74.8045941672882, 40.5172759845458],
+                      [-74.8044519280461, 40.5171458015989],
+                      [-74.804317786218, 40.517031875094],
+                      [-74.8042131980644, 40.5169709068347],
+                      [-74.8040981544192, 40.5169365393064],
+                      [-74.8039938070141, 40.5169285786028],
+                      [-74.8036771176388, 40.5169417642644],
+                      [-74.8033698632689, 40.5169813594768],
+                      [-74.8032016564269, 40.5170185310147],
+                      [-74.8030788782871, 40.5170636263433],
+                      [-74.8028337064865, 40.5172071794446],
+                      [-74.8027403715285, 40.5172726205391],
+                      [-74.8026554340218, 40.5174136949236],
+                      [-74.8025360811582, 40.5174128276318],
+                      [-74.8022437783479, 40.5174024194459],
+                      [-74.8021148611214, 40.5173861205009],
+                      [-74.8020524344974, 40.5173739312885],
+                      [-74.801898116508, 40.5173242361014],
+                      [-74.8017668088646, 40.517272091968],
+                      [-74.8016648060624, 40.5172097150859],
+                      [-74.8015430349341, 40.517102451161],
+                      [-74.8014748483124, 40.5170168449075],
+                      [-74.8012111298945, 40.5166095535021],
+                      [-74.8009622633231, 40.5162572892368],
+                      [-74.8008092514841, 40.5160965764125],
+                      [-74.800669767375, 40.5160010248576],
+                      [-74.8005307198471, 40.5159468411732],
+                      [-74.8004515585077, 40.5159159997303],
+                      [-74.8002621020176, 40.5158821779992],
+                      [-74.8000824533338, 40.5158699352455],
+                      [-74.7991720916418, 40.5158172286181],
+                      [-74.7981367185981, 40.5157057003347],
+                      [-74.7978825402885, 40.5156783191601],
+                      [-74.7896932223756, 40.5006855475092],
+                      [-74.7885041475869, 40.4985080139974],
+                      [-74.782516274347, 40.4877861635911],
+                      [-74.7825365160853, 40.4877731525643],
+                      [-74.7825893064813, 40.4877392182586],
+                      [-74.7827227817595, 40.4876397647983],
+                      [-74.7828279322584, 40.4875589655854],
+                      [-74.7829573049307, 40.487450215392],
+                      [-74.7831836489412, 40.487248306108],
+                      [-74.7835514731175, 40.4869190316181],
+                      [-74.7837980373068, 40.4866953847863],
+                      [-74.7840566982097, 40.4864593257966],
+                      [-74.7843072949363, 40.4862294648728],
+                      [-74.7844770621519, 40.4860834446077],
+                      [-74.7847560959472, 40.4858628162268],
+                      [-74.7848682811531, 40.4857803238827],
+                      [-74.7849988387032, 40.4856980329901],
+                      [-74.7852214753666, 40.4855828738071],
+                      [-74.7855859784712, 40.4854332699468],
+                      [-74.786027638774, 40.4852927794125],
+                      [-74.7862829363845, 40.4852239852256],
+                      [-74.7864896315448, 40.485173924598],
+                      [-74.786740979263, 40.4851237231865],
+                      [-74.7869720529035, 40.4850828786574],
+                      [-74.7873653622843, 40.4850292507457],
+                      [-74.7876278338407, 40.4849993584495],
+                      [-74.7879493094398, 40.4849627376185],
+                      [-74.7888211989833, 40.4848707410069],
+                      [-74.7894132938584, 40.4848104042029],
+                      [-74.7904027827539, 40.484702591744],
+                      [-74.7918302290966, 40.4845502919001],
+                      [-74.7926777680076, 40.4844583001892],
+                      [-74.7942917198746, 40.4842807368365],
+                      [-74.7949642301373, 40.4842107172372],
+                      [-74.7950541721585, 40.48420135268],
+                      [-74.7960962843634, 40.4840871522566],
+                      [-74.7974345118287, 40.4839443194643],
+                      [-74.7982617604924, 40.4838523665514],
+                      [-74.7992552684505, 40.4837413658765],
+                      [-74.8000175680209, 40.4836464658249],
+                      [-74.8007717531092, 40.4835546587197],
+                      [-74.8016800477778, 40.4834438577456],
+                      [-74.8023936901008, 40.4833552746379],
+                      [-74.8029329784103, 40.4832856995551],
+                      [-74.8036304151255, 40.4832002257338],
+                      [-74.8041412771461, 40.4831338228481],
+                      [-74.804514311551, 40.4830863932489],
+                      [-74.8047454462769, 40.4830547632487],
+                      [-74.8049359277447, 40.4830171205704],
+                      [-74.8050899681547, 40.4829826468196],
+                      [-74.805272330649, 40.4829387919196],
+                      [-74.8054505761643, 40.4828825672789],
+                      [-74.8056692539522, 40.4827921133492],
+                      [-74.8060984339607, 40.4826082336207],
+                      [-74.8067786463786, 40.4823028458451],
+                      [-74.8072684734485, 40.4820722990356],
+                      [-74.80748548037, 40.4819704047447],
+                      [-74.8075073238045, 40.4819601564094],
+                      [-74.8078109310143, 40.4818106442319],
+                      [-74.8081347278602, 40.4816424920861],
+                      [-74.8085799149487, 40.4814089564199],
+                      [-74.8089643220251, 40.4811941943118],
+                      [-74.8093932496069, 40.4809514198484],
+                      [-74.8098464406846, 40.4806930957697],
+                      [-74.8101782433163, 40.4805094344082],
+                      [-74.810457483724, 40.4803568797512],
+                      [-74.8106922620168, 40.4802447410922],
+                      [-74.8108906774052, 40.4801605643758],
+                      [-74.8112430227107, 40.4800356998428],
+                      [-74.8115792899694, 40.4799325657082],
+                      [-74.8121180437812, 40.4797638219116],
+                      [-74.8127783351595, 40.4795545058477],
+                      [-74.8137465456609, 40.4792482972076],
+                      [-74.8144838217607, 40.4790294284006],
+                      [-74.8152535665681, 40.4787981112025],
+                      [-74.8159871496937, 40.4785835518823],
+                      [-74.8162217860527, 40.4785135960371],
+                      [-74.8165701805676, 40.4784165628361],
+                      [-74.8168942594844, 40.4783165482349],
+                      [-74.8172223412942, 40.4782041410449],
+                      [-74.8174004897915, 40.4781323883905],
+                      [-74.8175624263928, 40.4780607067235],
+                      [-74.8177000096667, 40.4779859623918],
+                      [-74.8178537177001, 40.4778926182987],
+                      [-74.8179861940516, 40.477793267778],
+                      [-74.8180154198411, 40.4777713594774],
+                      [-74.8181244286042, 40.4776595233065],
+                      [-74.8182494875665, 40.4775136053447],
+                      [-74.8184511063471, 40.4772590146581],
+                      [-74.8187938396792, 40.4768181904687],
+                      [-74.8189430642209, 40.4766288025161],
+                      [-74.8190479326489, 40.476501495366],
+                      [-74.8191528468909, 40.4763834941745],
+                      [-74.8192820668496, 40.4762592225767],
+                      [-74.8194153912108, 40.4761442439987],
+                      [-74.819742554044, 40.4758490610539],
+                      [-74.8201909984237, 40.4754543861629],
+                      [-74.8205829118226, 40.4751099103732],
+                      [-74.8206636317391, 40.4750379569272],
+                      [-74.8210796864629, 40.4746681857786],
+                      [-74.8214148416072, 40.4743481587927],
+                      [-74.8218186927179, 40.4739691107961],
+                      [-74.8220650224469, 40.4737330029519],
+                      [-74.8223638389414, 40.4734533454736],
+                      [-74.8225415167214, 40.4732793850506],
+                      [-74.8227111393083, 40.4731271050751],
+                      [-74.8228848860607, 40.4729810453747],
+                      [-74.8230788116693, 40.4728224935194],
+                      [-74.8233576792762, 40.4726048748201],
+                      [-74.8241742137335, 40.4720109004415],
+                      [-74.8245420684524, 40.4717465549409],
+                      [-74.8246794963179, 40.4716439404204],
+                      [-74.8248613090431, 40.4714947524226],
+                      [-74.8255552090911, 40.4709091799548],
+                      [-74.8255960132662, 40.4708726484773],
+                      [-74.8256351429817, 40.4708350714068],
+                      [-74.8256725533217, 40.4707964938446],
+                      [-74.8257081984722, 40.4707569615757],
+                      [-74.825742038009, 40.4707165210683],
+                      [-74.8257740315078, 40.4706752201576],
+                      [-74.8258041403412, 40.4706331073622],
+                      [-74.8258323294748, 40.4705902318842],
+                      [-74.825858565671, 40.4705466456593],
+                      [-74.8258828174887, 40.4705023992568],
+                      [-74.8259050570802, 40.4704575446123],
+                      [-74.8259252583943, 40.4704121357123],
+                      [-74.8261928341781, 40.4696859964384],
+                      [-74.8262112810824, 40.4696353194206],
+                      [-74.8262314832949, 40.4695850305324],
+                      [-74.826253425544, 40.4695351659944],
+                      [-74.8262770943551, 40.4694857599773],
+                      [-74.8263024717619, 40.4694368480188],
+                      [-74.826329539798, 40.4693884629229],
+                      [-74.8263755308456, 40.4692897538296],
+                      [-74.8264199103156, 40.4691906181509],
+                      [-74.8264626719198, 40.4690910716031],
+                      [-74.8265038093699, 40.4689911299025],
+                      [-74.8265433154794, 40.4688908073989],
+                      [-74.8265811848586, 40.4687901204922],
+                      [-74.8266174121173, 40.4686890842156],
+                      [-74.8266519900693, 40.4685877142857],
+                      [-74.8266670781728, 40.4685359306906],
+                      [-74.8266802402883, 40.4684838443071],
+                      [-74.8266914674327, 40.4684314954554],
+                      [-74.8267007506229, 40.4683789271895],
+                      [-74.8267080808756, 40.4683261805134],
+                      [-74.8267134545976, 40.4682732977978],
+                      [-74.8267168655008, 40.4682203207302],
+                      [-74.8267183117884, 40.4681672916818],
+                      [-74.8267177925621, 40.4681142523404],
+                      [-74.826715307822, 40.4680612450774],
+                      [-74.8267108593648, 40.4680083122643],
+                      [-74.8267044507835, 40.4679554955891],
+                      [-74.8266960874682, 40.4679028381073],
+                      [-74.8266857766054, 40.4678503801402],
+                      [-74.8266735253816, 40.4677981647436],
+                      [-74.8266593436782, 40.4677462322391],
+                      [-74.8266532396258, 40.4677173553163],
+                      [-74.8266492412245, 40.4676882658396],
+                      [-74.8266473601523, 40.4676590526525],
+                      [-74.8266476017991, 40.4676298052819],
+                      [-74.8266499652666, 40.4676006125717],
+                      [-74.8266544451649, 40.4675715640493],
+                      [-74.8266610253244, 40.4675427471919],
+                      [-74.8266696877787, 40.4675142515272],
+                      [-74.82668040468, 40.4674861624825],
+                      [-74.8266931436891, 40.467458566852],
+                      [-74.8267078661783, 40.4674315486965],
+                      [-74.8267245272318, 40.4674051900268],
+                      [-74.8267430765441, 40.4673795708031],
+                      [-74.826763456623, 40.4673547703028],
+                      [-74.8267856045863, 40.4673308637026],
+                      [-74.8268094548571, 40.467307924129],
+                      [-74.8271800961501, 40.4670180808552],
+                      [-74.8275599254117, 40.4667257732741],
+                      [-74.8279599820387, 40.4664179800368],
+                      [-74.8283480228004, 40.4661380535782],
+                      [-74.8285945663284, 40.4659638876282],
+                      [-74.8287441016873, 40.4658488251286],
+                      [-74.8288652206387, 40.4657370012211],
+                      [-74.8289822235095, 40.4656065214217],
+                      [-74.8290547220445, 40.465504085464],
+                      [-74.829117856541, 40.465398217132],
+                      [-74.8291472350441, 40.4653489413419],
+                      [-74.8292074347445, 40.4652156026494],
+                      [-74.8292432909991, 40.4650729723286],
+                      [-74.8292750078168, 40.4649365582864],
+                      [-74.8292821844576, 40.4648382903044],
+                      [-74.8292864209125, 40.4647785437605],
+                      [-74.8293053457206, 40.4645027952068],
+                      [-74.8293157284486, 40.4641341203921],
+                      [-74.8293617464457, 40.4635918783595],
+                      [-74.8294748605096, 40.462659114526],
+                      [-74.8296522104046, 40.4616115290688],
+                      [-74.8297587398175, 40.4609947747696],
+                      [-74.8298300606612, 40.4606599938541],
+                      [-74.8298659483568, 40.4605390777807],
+                      [-74.8299180488466, 40.4604119103156],
+                      [-74.8299841289189, 40.4603210235384],
+                      [-74.8300147767415, 40.4602753378069],
+                      [-74.8300913985436, 40.4601945774254],
+                      [-74.8302004809686, 40.4601075185836],
+                      [-74.830321753532, 40.4600297318703],
+                      [-74.8305158938379, 40.4599114659293],
+                      [-74.8307302147967, 40.4597900386224],
+                      [-74.8308717255051, 40.4597059900494],
+                      [-74.8309768373765, 40.4596375257452],
+                      [-74.8311344243352, 40.4595193636886],
+                      [-74.8312718027933, 40.459413638344],
+                      [-74.8314131518049, 40.4592893455945],
+                      [-74.8315665750723, 40.4591433022768],
+                      [-74.8317319576111, 40.4589662324449],
+                      [-74.8318591312075, 40.4588391248848],
+                      [-74.8319256245048, 40.4587674219389],
+                      [-74.8320749092337, 40.4586059077059],
+                      [-74.8321918716803, 40.4584785540851],
+                      [-74.832312994225, 40.4583635976936],
+                      [-74.8324704015207, 40.4582175414273],
+                      [-74.8328219149863, 40.4579408343131],
+                      [-74.8331693069814, 40.4576672141808],
+                      [-74.8334520975312, 40.4574402539542],
+                      [-74.8338036235732, 40.4571821285527],
+                      [-74.834042034653, 40.4570079749243],
+                      [-74.8342199136556, 40.4568897480928],
+                      [-74.8343533601877, 40.4568118947696],
+                      [-74.8345434589732, 40.4567153189297],
+                      [-74.8347417602756, 40.4566279992571],
+                      [-74.8351140877063, 40.4564720390087],
+                      [-74.836251223702, 40.4559823794393],
+                      [-74.836659090282, 40.4558065425744],
+                      [-74.8369674891055, 40.4556735786568],
+                      [-74.8372749932071, 40.4555426172388],
+                      [-74.8376594200464, 40.4553648988084],
+                      [-74.8379304974632, 40.4552371173],
+                      [-74.8380801747558, 40.4551654146112],
+                      [-74.83824197122, 40.4550812973668],
+                      [-74.8383834783351, 40.4550003126915],
+                      [-74.838577538691, 40.4548789578498],
+                      [-74.8388119001654, 40.4547109822857],
+                      [-74.8391756711431, 40.4544652138291],
+                      [-74.8394908558403, 40.4542412442543],
+                      [-74.8396969626042, 40.4541012134189],
+                      [-74.8399111443241, 40.4539519057951],
+                      [-74.8401253574851, 40.453808775121],
+                      [-74.8403233093428, 40.4536625906979],
+                      [-74.8405010571914, 40.4535288460166],
+                      [-74.8407514796449, 40.4533267506403],
+                      [-74.8412563121733, 40.4529163444724],
+                      [-74.8416618835577, 40.452577517599],
+                      [-74.8419670179036, 40.4523225821914],
+                      [-74.8423789125293, 40.4519836825997],
+                      [-74.8427591586093, 40.4516689238468],
+                      [-74.8431380994372, 40.4513525736139],
+                      [-74.8435660927711, 40.4509950640532],
+                      [-74.8443777826141, 40.450326621788],
+                      [-74.8451450031555, 40.449692373205],
+                      [-74.8455690151562, 40.4493472498448],
+                      [-74.8459243374786, 40.4490549808995],
+                      [-74.8462110392931, 40.4488218008544],
+                      [-74.846417009513, 40.4486538949159],
+                      [-74.8465785257028, 40.4485202161463],
+                      [-74.8468451124415, 40.4483242356399],
+                      [-74.8470713926717, 40.4481655743088],
+                      [-74.8480008561399, 40.4475494034385],
+                      [-74.8489841277954, 40.4468914184914],
+                      [-74.8491279642421, 40.4467940811901],
+                      [-74.8493174890041, 40.4466658308223],
+                      [-74.8502568905343, 40.446020185017],
+                      [-74.8511345742113, 40.4454010712336],
+                      [-74.8519547064213, 40.4448285743538],
+                      [-74.852706105834, 40.4442985088893],
+                      [-74.8529161993211, 40.4441503081961],
+                      [-74.8535302005127, 40.4437209305672],
+                      [-74.8540271458329, 40.443369347399],
+                      [-74.8543705151722, 40.44312666864],
+                      [-74.8548552146585, 40.4427782217607],
+                      [-74.8554125114944, 40.4423521087838],
+                      [-74.8556951601104, 40.4421250940943],
+                      [-74.8562533444818, 40.4416847305021],
+                      [-74.8579513570999, 40.4435947670135],
+                      [-74.8579838958761, 40.4438844823227],
+                      [-74.8580181675025, 40.4441740801622],
+                      [-74.8580541710808, 40.4444635550644],
+                      [-74.8580919057126, 40.4447529008782],
+                      [-74.858131371398, 40.4450421121358],
+                      [-74.8581725663403, 40.4453311826863],
+                      [-74.8582154905395, 40.4456201056952],
+                      [-74.858260142199, 40.4459088756952],
+                      [-74.8583166183826, 40.4458908393565],
+                      [-74.8585513185219, 40.4458158814761],
+                      [-74.8588864907342, 40.4456942762441],
+                      [-74.8593307283035, 40.4455352689362],
+                      [-74.8597507086651, 40.4453824857957],
+                      [-74.8601020451626, 40.4452608244047],
+                      [-74.8603639346107, 40.4451707627981],
+                      [-74.860619009439, 40.4450830288759],
+                      [-74.8609299837324, 40.4449800488911],
+                      [-74.8614427690461, 40.4447806035972],
+                      [-74.8624644553581, 40.4444095542544],
+                      [-74.8631468794282, 40.444160102887],
+                      [-74.863978718483, 40.4438545587208],
+                      [-74.8645238575199, 40.4436612028444],
+                      [-74.8648585545235, 40.4435424343168],
+                      [-74.8652709638839, 40.4433960504932],
+                      [-74.8658887721357, 40.4431746501483],
+                      [-74.8665712411216, 40.4429313813672],
+                      [-74.8670800846278, 40.4427597593412],
+                      [-74.8676413906449, 40.4425632075824],
+                      [-74.8686872452313, 40.4421889511973],
+                      [-74.8693292523002, 40.4419550479317],
+                      [-74.8705528250908, 40.4415276368991],
+                      [-74.8710979102288, 40.4413311485385],
+                      [-74.8716713704517, 40.4411407423339],
+                      [-74.872055002282, 40.4410065871341],
+                      [-74.8725839249314, 40.44081324426],
+                      [-74.8728224590803, 40.4407091747726],
+                      [-74.8728699305515, 40.4408866058433],
+                      [-74.8729320086292, 40.4411125246684],
+                      [-74.8730061591661, 40.4413260229794],
+                      [-74.8730801066836, 40.4415023797287],
+                      [-74.8731621749713, 40.4416786539741],
+                      [-74.8732482174059, 40.4418394636878],
+                      [-74.8733588404415, 40.4420466938177],
+                      [-74.873461328334, 40.4422508208053],
+                      [-74.8735885684058, 40.4425323091638],
+                      [-74.8736952208879, 40.4427550085404],
+                      [-74.8737731452472, 40.4429158423422],
+                      [-74.8738062077412, 40.4430272160993],
+                      [-74.8738721099471, 40.4432098020181],
+                      [-74.8739260888142, 40.4434388756464],
+                      [-74.8739555364875, 40.4436370341754],
+                      [-74.8739726161561, 40.4437887862276],
+                      [-74.8739898188937, 40.443968399599],
+                      [-74.8739989951844, 40.4440484267811],
+                      [-74.8743005784899, 40.4442861259148],
+                      [-74.8748215564389, 40.444727996314],
+                      [-74.8750672456691, 40.4450327797165],
+                      [-74.8751184047245, 40.4452167684897],
+                      [-74.8751153747071, 40.445365575955],
+                      [-74.875033473506, 40.4455485233195],
+                      [-74.8749414267321, 40.4456725529927],
+                      [-74.8747599589599, 40.445890173496],
+                      [-74.8746910626691, 40.445958530805],
+                      [-74.8744504938361, 40.446127311007],
+                      [-74.8742310803279, 40.4463006465009],
+                      [-74.8740908721767, 40.4464204465374],
+                      [-74.8740158978847, 40.4464824934122],
+                      [-74.8739601789809, 40.4465423744953],
+                      [-74.8739596489749, 40.4465706787531],
+                      [-74.8739765067595, 40.4466883371891],
+                      [-74.8739962544244, 40.4467620615186],
+                      [-74.8739972380797, 40.4467657107146],
+                      [-74.8740383009696, 40.4468616028736],
+                      [-74.8740955874336, 40.446954367999],
+                      [-74.874173209959, 40.4470594477835],
+                      [-74.8743038196114, 40.4472139067701],
+                      [-74.874442601238, 40.4473776441744],
+                      [-74.8745568669421, 40.4475073663819],
+                      [-74.8746303608104, 40.447600078661],
+                      [-74.87469981226, 40.4476958787086],
+                      [-74.8747979603913, 40.4478411641691],
+                      [-74.874875617951, 40.4479524197034],
+                      [-74.8750309878676, 40.448184264937],
+                      [-74.8751454637775, 40.4483511821816],
+                      [-74.87526006096, 40.4485459642447],
+                      [-74.8753584183988, 40.4487284162249],
+                      [-74.8754486712371, 40.4489202016415],
+                      [-74.8755718742799, 40.4491954959864],
+                      [-74.8757033867392, 40.4495110353724],
+                      [-74.8758475322064, 40.4499071027616],
+                      [-74.8759505402233, 40.450201048268],
+                      [-74.8760618594534, 40.4505290604615],
+                      [-74.8761607226436, 40.4508075350892],
+                      [-74.876226549391, 40.4509808140796],
+                      [-74.8762922755271, 40.4511292779296],
+                      [-74.8763702331241, 40.4512932101852],
+                      [-74.8764522358348, 40.4514540297088],
+                      [-74.8765422560094, 40.4515962357339],
+                      [-74.8766528368243, 40.451791056242],
+                      [-74.8767552276987, 40.4519734939436],
+                      [-74.8768780076351, 40.4521775798473],
+                      [-74.8769844085889, 40.4523506714249],
+                      [-74.8770295579151, 40.4524434740893],
+                      [-74.87705834353, 40.4525208211657],
+                      [-74.8770832124904, 40.4526043845087],
+                      [-74.8771121867515, 40.4527220296472],
+                      [-74.8771537257486, 40.4528953324108],
+                      [-74.8771999494599, 40.4531863863722],
+                      [-74.8772672557325, 40.453616770563],
+                      [-74.8773095591959, 40.4539325981553],
+                      [-74.8773522633079, 40.4543072806219],
+                      [-74.877381949933, 40.4545457377552],
+                      [-74.8774238554427, 40.4547903028791],
+                      [-74.8774701321546, 40.4550906612008],
+                      [-74.8775755674195, 40.4558089957782],
+                      [-74.8776639104395, 40.4563818112909],
+                      [-74.877760705708, 40.4570072223667],
+                      [-74.8778027001509, 40.4572672978371],
+                      [-74.8778359333248, 40.4574066426575],
+                      [-74.877873070577, 40.4575118243472],
+                      [-74.8779224060524, 40.4576386815177],
+                      [-74.8779798640946, 40.4577593082169],
+                      [-74.8780331737168, 40.4578644647479],
+                      [-74.8781108842771, 40.4579819215968],
+                      [-74.8781381732988, 40.4580223205592],
+                      [-74.8782090189337, 40.4581272019073],
+                      [-74.8783070188429, 40.4582414915982],
+                      [-74.8784171451103, 40.4583588712351],
+                      [-74.8785516893836, 40.4584854192282],
+                      [-74.8787473029266, 40.4586520689252],
+                      [-74.8789632228866, 40.458824826679],
+                      [-74.8793094578517, 40.4590870317366],
+                      [-74.8796637776542, 40.4593553605967],
+                      [-74.8799488580096, 40.45956818718],
+                      [-74.8801443925009, 40.4597193236572],
+                      [-74.8802421678314, 40.4597995439667],
+                      [-74.8803889211078, 40.4599291813647],
+                      [-74.8804867476422, 40.4600186798178],
+                      [-74.8806091170485, 40.4601452944004],
+                      [-74.8806948881919, 40.4602441392777],
+                      [-74.8807888313093, 40.4603646437389],
+                      [-74.8808624536367, 40.4604759359523],
+                      [-74.8809279345327, 40.4605841256408],
+                      [-74.880977192753, 40.4606831181885],
+                      [-74.8810305625624, 40.4607975518472],
+                      [-74.8810922112454, 40.4609460521032],
+                      [-74.881182778494, 40.4611811776347],
+                      [-74.8813104201127, 40.4615215112456],
+                      [-74.8813885618644, 40.4617133298643],
+                      [-74.8814831571587, 40.4619484417746],
+                      [-74.8815816718027, 40.4621587777819],
+                      [-74.881688296437, 40.462359782434],
+                      [-74.8817864796026, 40.462511237277],
+                      [-74.8819009285631, 40.462665767368],
+                      [-74.8820031047401, 40.4628048269226],
+                      [-74.8820880754845, 40.4629138863246],
+                      [-74.8822809105384, 40.4631570438171],
+                      [-74.8827589624915, 40.4637843191594],
+                      [-74.8830164897205, 40.4641335257911],
+                      [-74.8832004934368, 40.4643900265854],
+                      [-74.883306861153, 40.4645507580362],
+                      [-74.8834870326563, 40.4648537456646],
+                      [-74.8836672086511, 40.4651567326098],
+                      [-74.8838596753957, 40.4654783172097],
+                      [-74.8839743794777, 40.4656761900035],
+                      [-74.8841918714894, 40.4661184227614],
+                      [-74.8843438008585, 40.4664462923251],
+                      [-74.884458560636, 40.4666534424788],
+                      [-74.8845281513245, 40.4667678481978],
+                      [-74.8845975821128, 40.466854363972],
+                      [-74.8846670335623, 40.4669377495674],
+                      [-74.8847486320312, 40.4670211220742],
+                      [-74.884858714281, 40.4671198830247],
+                      [-74.8849727167788, 40.4672000452904],
+                      [-74.8850867372429, 40.4672771341325],
+                      [-74.8852617506198, 40.467378779407],
+                      [-74.8854651929805, 40.4674927383038],
+                      [-74.8856971020542, 40.4676189547201],
+                      [-74.8859819533393, 40.4677760126206],
+                      [-74.8861772928961, 40.46789304551],
+                      [-74.8863320007543, 40.4679947568266],
+                      [-74.8864460787106, 40.4680811213537],
+                      [-74.8865886557192, 40.4681859760629],
+                      [-74.8867842108717, 40.4683402026508],
+                      [-74.8870124395478, 40.4685253126328],
+                      [-74.8873832308594, 40.4688183490889],
+                      [-74.8875421832573, 40.4689510368659],
+                      [-74.8876685537599, 40.469062120768],
+                      [-74.8877949961277, 40.4691794076905],
+                      [-74.8879377563927, 40.4693214292688],
+                      [-74.888125409964, 40.4695066718584],
+                      [-74.8882437135953, 40.4696209121196],
+                      [-74.8884027405534, 40.4697659526738],
+                      [-74.8884965147876, 40.4698523832623],
+                      [-74.8885983406217, 40.4699263794519],
+                      [-74.8886290378516, 40.4699449697192],
+                      [-74.8887204755677, 40.4700003352401],
+                      [-74.8888384764668, 40.4700680721072],
+                      [-74.8889401603671, 40.4701111037312],
+                      [-74.8890581271302, 40.4701726640268],
+                      [-74.8891678976647, 40.4702156668815],
+                      [-74.8893304900361, 40.4702739748431],
+                      [-74.8894645779653, 40.4703137951022],
+                      [-74.8895864452134, 40.4703474518782],
+                      [-74.8897367270722, 40.4703779370438],
+                      [-74.8898909983493, 40.4704022054371],
+                      [-74.8900330678097, 40.470417209166],
+                      [-74.890219761082, 40.4704351630657],
+                      [-74.8904713513453, 40.4704560001622],
+                      [-74.8907189000881, 40.4704737469859],
+                      [-74.890962365988, 40.4704884069563],
+                      [-74.8911246735936, 40.4705033682961],
+                      [-74.8912910954831, 40.4705213884611],
+                      [-74.8914453487938, 40.4705425535551],
+                      [-74.8915874550852, 40.4705637316269],
+                      [-74.8920144665606, 40.4706342007754],
+                      [-74.8922127049808, 40.4706669150058],
+                      [-74.8928420197531, 40.4707639047362],
+                      [-74.8931424783679, 40.4708124877051],
+                      [-74.8933170794181, 40.4708459610851],
+                      [-74.8934429765085, 40.4708734220644],
+                      [-74.8935607842698, 40.4709009131012],
+                      [-74.8936867163946, 40.4709345511318],
+                      [-74.8937720850926, 40.4709652253271],
+                      [-74.8938980540483, 40.4710050670443],
+                      [-74.8941135275456, 40.4710879766383],
+                      [-74.894552633938, 40.471266120221],
+                      [-74.8952804938969, 40.4715672454304],
+                      [-74.8956099195863, 40.4717055157119],
+                      [-74.8957888388381, 40.4717885481314],
+                      [-74.895935319925, 40.4718562087074],
+                      [-74.8959952797752, 40.4718876847586],
+                      [-74.8961346417135, 40.4719608559285],
+                      [-74.8963136723563, 40.472056266575],
+                      [-74.8964683874011, 40.4721486600171],
+                      [-74.8966190411624, 40.4722410929674],
+                      [-74.896818528241, 40.4723736017736],
+                      [-74.8970018600174, 40.4725030918987],
+                      [-74.8971443921103, 40.4726017299826],
+                      [-74.8973195662856, 40.472731246319],
+                      [-74.8973747857261, 40.4727752807777],
+                      [-74.8975151762354, 40.4728823531791],
+                      [-74.8976294212783, 40.4729872912788],
+                      [-74.897711025137, 40.4730675510949],
+                      [-74.8977763281666, 40.4731447671399],
+                      [-74.8978417569603, 40.4732250848531],
+                      [-74.8979194827919, 40.4733425285104],
+                      [-74.8980137484046, 40.4735032884213],
+                      [-74.8982433056889, 40.4739114128576],
+                      [-74.8984729195671, 40.4743226378861],
+                      [-74.8986082139337, 40.47457000242],
+                      [-74.8986862146499, 40.4747215117306],
+                      [-74.8987437247943, 40.4748421268868],
+                      [-74.898789049292, 40.47496278351],
+                      [-74.8988344465532, 40.475095848649],
+                      [-74.8989006128638, 40.4753062541844],
+                      [-74.8989750149289, 40.4755476243126],
+                      [-74.8990453179813, 40.4757704233736],
+                      [-74.899156736026, 40.4760829290255],
+                      [-74.8992349280833, 40.4762778097241],
+                      [-74.8993130069528, 40.476447930981],
+                      [-74.8994033675889, 40.476639696038],
+                      [-74.8994772387497, 40.4767788380415],
+                      [-74.8995880198888, 40.4769890886561],
+                      [-74.8997232298138, 40.4772147651619],
+                      [-74.9001349636412, 40.4778660218433],
+                      [-74.90021208311, 40.4779874670369],
+                      [-74.9008148769201, 40.4787742483074],
+                      [-74.9016442465062, 40.4787087067859],
+                      [-74.9027803224898, 40.4785867504204],
+                      [-74.9029896021033, 40.4785642834373],
+                      [-74.9030905215372, 40.4786094852504],
+                      [-74.9032166575795, 40.4786741310606],
+                      [-74.9033428502157, 40.4787480020513],
+                      [-74.9034487678759, 40.4788219706726],
+                      [-74.9035546873327, 40.4788959938763],
+                      [-74.9037339874702, 40.4790316361357],
+                      [-74.9039744287425, 40.4792135666519],
+                      [-74.9041740802127, 40.4793553681696],
+                      [-74.9043206987418, 40.4794539825215],
+                      [-74.9044469857011, 40.4795372110304],
+                      [-74.9045446891663, 40.4795956988032],
+                      [-74.9046545791767, 40.4796541694427],
+                      [-74.9047685322671, 40.4797126256822],
+                      [-74.9049841764444, 40.4798172012128],
+                      [-74.905525246113, 40.4800724135558],
+                      [-74.9060134130963, 40.4802937408381],
+                      [-74.9063306055282, 40.4804196434823],
+                      [-74.9069742205815, 40.4806873896911],
+                      [-74.9075593984289, 40.480549279345],
+                      [-74.9081638092066, 40.4804735559061],
+                      [-74.9087761018025, 40.4804616408146],
+                      [-74.9093847786795, 40.4805137589044],
+                      [-74.9101272308719, 40.4806371493935],
+                      [-74.9118775092698, 40.4811531048286],
+                      [-74.9138041027035, 40.4816376326612],
+                      [-74.9139301408294, 40.4816836837604],
+                      [-74.914080632894, 40.4817481496433],
+                      [-74.9141946147305, 40.481809698587],
+                      [-74.9142842989352, 40.4818775383303],
+                      [-74.9143311101447, 40.4819185453779],
+                      [-74.9143617938998, 40.4819454224175],
+                      [-74.914427084353, 40.4820102208004],
+                      [-74.9145007066804, 40.4821029346627],
+                      [-74.9145621065301, 40.4821956087676],
+                      [-74.9146072899923, 40.4822821928068],
+                      [-74.9146402887059, 40.4823749971676],
+                      [-74.9146695091055, 40.4825081138925],
+                      [-74.9147744907212, 40.4830870136458],
+                      [-74.9148633179331, 40.4836753051513],
+                      [-74.9149478925204, 40.4842325646773],
+                      [-74.9149979457498, 40.4844554551673],
+                      [-74.9150433987065, 40.4845853824959],
+                      [-74.9150846008353, 40.4846905380221],
+                      [-74.9151380101706, 40.4847988069041],
+                      [-74.9152036069492, 40.4849069758587],
+                      [-74.9153100635986, 40.4850646020874],
+                      [-74.9154204099532, 40.4851942973034],
+                      [-74.915514317138, 40.4852930861845],
+                      [-74.9156162148373, 40.4853701884173],
+                      [-74.9157384647677, 40.4854533651811],
+                      [-74.915889041274, 40.485530290956],
+                      [-74.9159866683824, 40.4855732839749],
+                      [-74.9161330084338, 40.4856161027424],
+                      [-74.9163036326422, 40.4856496117858],
+                      [-74.9164903196262, 40.4856644208031],
+                      [-74.9166891159003, 40.4856606022291],
+                      [-74.9168594706141, 40.4856506550786],
+                      [-74.9171351788462, 40.4856249259837],
+                      [-74.9177069223885, 40.4855701821053],
+                      [-74.9184611164601, 40.4855023946034],
+                      [-74.919073411751, 40.4854475249103],
+                      [-74.9199493365267, 40.485379258338],
+                      [-74.9205657110673, 40.4853274945247],
+                      [-74.9208942123903, 40.4853046123416],
+                      [-74.9211172919231, 40.485297595529],
+                      [-74.9212511956976, 40.4853002095821],
+                      [-74.9213648999547, 40.4853152776221],
+                      [-74.9214908159098, 40.4853396075735],
+                      [-74.9216086991296, 40.485373216507],
+                      [-74.9217509832874, 40.4854223026962],
+                      [-74.9218975030018, 40.485493002897],
+                      [-74.9220441412939, 40.4855885200285],
+                      [-74.9221420396935, 40.4856687046567],
+                      [-74.9222195876587, 40.4857427585715],
+                      [-74.9223135640139, 40.4858508488],
+                      [-74.9223472580236, 40.4859044781049],
+                      [-74.9224242157956, 40.4860270108008],
+                      [-74.9225678213753, 40.4862804928415],
+                      [-74.9227278742094, 40.4865711090473],
+                      [-74.9232527777963, 40.4874613551639],
+                      [-74.9234044951629, 40.4877117313832],
+                      [-74.9234986502828, 40.4878476817195],
+                      [-74.9235968289568, 40.4879774125501],
+                      [-74.9236949672067, 40.488094792825],
+                      [-74.9237807419433, 40.4881842981528],
+                      [-74.9238868922671, 40.4882892389803],
+                      [-74.9240092976061, 40.4884003243664],
+                      [-74.9242132582947, 40.4885761421744],
+                      [-74.9245763690106, 40.488890773081],
+                      [-74.9247681808833, 40.4890666633893],
+                      [-74.9248988300616, 40.4891962736709],
+                      [-74.9249968596153, 40.4893012436597],
+                      [-74.9250990869964, 40.4894278843362],
+                      [-74.9252422982156, 40.4896163049925],
+                      [-74.9253610348349, 40.4897893602176],
+                      [-74.9253974022308, 40.4898479429021],
+                      [-74.9254512292827, 40.4899346291127],
+                      [-74.9255496882311, 40.4901077306567],
+                      [-74.925861435974, 40.490633207871],
+                      [-74.9260869256867, 40.4910102980771],
+                      [-74.9263945618406, 40.4915327137687],
+                      [-74.9265012268991, 40.4917119870357],
+                      [-74.9265225996164, 40.4917540121442],
+                      [-74.9265751384841, 40.4918573166697],
+                      [-74.9266450193284, 40.4919964565072],
+                      [-74.9267477883935, 40.4922129145058],
+                      [-74.9268465833118, 40.4924262845999],
+                      [-74.9272823857006, 40.4933292478063],
+                      [-74.9274551604758, 40.4937034269962],
+                      [-74.927537668938, 40.4939106809243],
+                      [-74.9276616220741, 40.4942633822843],
+                      [-74.9277606649275, 40.4945263281802],
+                      [-74.9278098171466, 40.4946676574077],
+                      [-74.9278435515804, 40.4947986122159],
+                      [-74.9278727046063, 40.4949162141923],
+                      [-74.9279227093266, 40.4951235880215],
+                      [-74.9279650747737, 40.4954022254856],
+                      [-74.9280115895392, 40.4956994879657],
+                      [-74.9280417459833, 40.4959750414601],
+                      [-74.9280522571704, 40.4963498487129],
+                      [-74.9280462941535, 40.496690650316],
+                      [-74.9280484204658, 40.4970251634847],
+                      [-74.9280582812727, 40.4972977160894],
+                      [-74.9280800402655, 40.4975361872681],
+                      [-74.9281136534268, 40.4977157307176],
+                      [-74.9281428648432, 40.4978364357148],
+                      [-74.9282050255659, 40.4980437629476],
+                      [-74.9282753313133, 40.4982479595658],
+                      [-74.9283329932731, 40.4983809669349],
+                      [-74.9284167800379, 40.4985441806903],
+                      [-74.9284726660284, 40.4986530392785],
+                      [-74.9286247058902, 40.4989529562076],
+                      [-74.928887737097, 40.4994754760515],
+                      [-74.9289820754732, 40.4996300597425],
+                      [-74.9290762746105, 40.499762903163],
+                      [-74.929190854725, 40.4999111813155],
+                      [-74.929346336931, 40.5001181626443],
+                      [-74.9295468561738, 40.5003776264756],
+                      [-74.9296573579369, 40.5005289935185],
+                      [-74.929735261635, 40.500649516537],
+                      [-74.9297968150966, 40.500754618203],
+                      [-74.9298461361989, 40.5008535604119],
+                      [-74.9298833857405, 40.5009649556067],
+                      [-74.929929080344, 40.5011320743505],
+                      [-74.9299624806046, 40.5012775229277],
+                      [-74.9300087097058, 40.501528282029],
+                      [-74.9300681988388, 40.5019462532206],
+                      [-74.9301193830471, 40.5023363911962],
+                      [-74.9301288746464, 40.5025501170742],
+                      [-74.9301298044027, 40.5026956882592],
+                      [-74.9301243686969, 40.5031170291887],
+                      [-74.9301187308702, 40.5035011734338],
+                      [-74.9301281281464, 40.5037055952391],
+                      [-74.9301535037565, 40.5038665850236],
+                      [-74.9302036566988, 40.50408943899],
+                      [-74.9302996497718, 40.5045072733252],
+                      [-74.9303918151233, 40.5049561134347],
+                      [-74.9305382674641, 40.5056494786691],
+                      [-74.9306303169329, 40.5060797069738],
+                      [-74.9307349239511, 40.506578077874],
+                      [-74.930886647606, 40.5074479883575],
+                      [-74.9309338576674, 40.5078505209156],
+                      [-74.930943452573, 40.5080797299562],
+                      [-74.9309405177769, 40.5082563069198],
+                      [-74.9309053864628, 40.5084763753782],
+                      [-74.930857978772, 40.5086779072904],
+                      [-74.9307780538646, 40.5089122263931],
+                      [-74.9307225218103, 40.5090749712635],
+                      [-74.930603238117, 40.509459539671],
+                      [-74.9305357279268, 40.509695213135],
+                      [-74.9305003118467, 40.5098657066062],
+                      [-74.9304771137528, 40.5100454608807],
+                      [-74.9304620840398, 40.5102375650026],
+                      [-74.9304555173551, 40.5104761131172],
+                      [-74.9304492911318, 40.5107735690163],
+                      [-74.9304458631607, 40.5109843517173],
+                      [-74.9304434610656, 40.5111329260606],
+                      [-74.9304568028442, 40.5113125164405],
+                      [-74.9304658452859, 40.5114611856721],
+                      [-74.9304868991012, 40.5115757158235],
+                      [-74.9304940110633, 40.5116250464697],
+                      [-74.9305285773371, 40.5117490517935],
+                      [-74.9305781275098, 40.5118820603937],
+                      [-74.930652062451, 40.5120150058975],
+                      [-74.9307504692971, 40.5121725916684],
+                      [-74.930889701878, 40.5123641481108],
+                      [-74.9310247905304, 40.5125433404444],
+                      [-74.9311842100523, 40.5127193101186],
+                      [-74.9313763453185, 40.512932328154],
+                      [-74.931580659045, 40.5131484290338],
+                      [-74.9317564009556, 40.5133398208297],
+                      [-74.9318913171315, 40.5134911217418],
+                      [-74.9320058074145, 40.5136207845509],
+                      [-74.932148971023, 40.5137906390503],
+                      [-74.9322430417013, 40.5139048954607],
+                      [-74.9323821610944, 40.5140778661829],
+                      [-74.9326072807012, 40.5143681974041],
+                      [-74.9328119824999, 40.5146431504015],
+                      [-74.9330657439913, 40.5149736444556],
+                      [-74.9339171420647, 40.516076373576],
+                      [-74.9342485916585, 40.5164933198775],
+                      [-74.9344735881961, 40.5167619875018],
+                      [-74.9345963411831, 40.5169164056972],
+                      [-74.9346986889383, 40.5170523159782],
+                      [-74.9347970302074, 40.517191370098],
+                      [-74.9348994588111, 40.5173396602568],
+                      [-74.9350142428431, 40.5175127190908],
+                      [-74.9351659745828, 40.5177537721645],
+                      [-74.9352888721985, 40.5179298749884],
+                      [-74.9354445286777, 40.5181430499265],
+                      [-74.9356000477146, 40.5183407162689],
+                      [-74.935792374322, 40.5185785137364],
+                      [-74.9359806171881, 40.5188132243683],
+                      [-74.9362916256176, 40.5192023771559],
+                      [-74.9364487095198, 40.5194007498943],
+                      [-74.9151070263781, 40.5414863057931],
+                      [-74.913297497799, 40.5433268634014],
+                      [-74.9130402454545, 40.543588396369],
+                      [-74.9128247890251, 40.5438075733693],
+                      [-74.9111948336713, 40.5452671427109],
+                      [-74.8955389778317, 40.5614643063761],
+                      [-74.892235755751, 40.5649520538826],
+                      [-74.8905446925, 40.5668191931051],
+                      [-74.8883637195341, 40.5692325874682],
+                      [-74.8880432428616, 40.5695872386047],
+                      [-74.8877005786998, 40.569905462855],
+                      [-74.8843603900469, 40.5730072049534],
+                      [-74.8830939622273, 40.5743292747808],
+                      [-74.8781958568181, 40.5794419682712],
+                      [-74.8780018234117, 40.5794606919341],
+                      [-74.8779696574363, 40.5794637962832],
+                      [-74.8775453759411, 40.5794409994411],
+                      [-74.8771728697456, 40.5794250594543],
+                      [-74.8765812482826, 40.5793959426841],
+                      [-74.8762569816179, 40.5793920025447],
+                      [-74.876086213679, 40.5793975555827],
+                      [-74.8759663272161, 40.5794046437392],
+                      [-74.8758356582749, 40.579421539598],
+                      [-74.8756629221272, 40.5794550140451],
+                      [-74.8754600924176, 40.5795150507717],
+                      [-74.8754495165517, 40.5795166220487],
+                      [-74.8753186805238, 40.5795616548448],
+                      [-74.8750016470938, 40.5796860482007],
+                      [-74.8748400671236, 40.5797637644224],
+                      [-74.87459786695, 40.579872487019],
+                      [-74.8743529332029, 40.5799688378497],
+                      [-74.8741977393561, 40.5800235558301],
+                      [-74.8740234634961, 40.5800652963401],
+                      [-74.8738312554663, 40.5801003969921],
+                      [-74.8735997290749, 40.5801217342387],
+                      [-74.8734158286648, 40.5801293558519],
+                      [-74.8733541422526, 40.5801270020281],
+                      [-74.8723004265092, 40.5801007285743],
+                      [-74.8719665676338, 40.5800880520334],
+                      [-74.8718160576029, 40.5800724226329],
+                      [-74.8716776317092, 40.5800476405967],
+                      [-74.8715449352704, 40.5799976405269],
+                      [-74.8713559162599, 40.5799194920178],
+                      [-74.8709945833099, 40.5797233630239],
+                      [-74.8704670368795, 40.5793791477956],
+                      [-74.8701328923399, 40.5791767532286],
+                      [-74.8699529256525, 40.5790613506762],
+                      [-74.8696088026267, 40.5788244801784],
+                      [-74.86936741992, 40.578611492852],
+                      [-74.8693025238272, 40.5785555906366],
+                      [-74.8691119139004, 40.5783635220202],
+                      [-74.8690119897997, 40.578242371162],
+                      [-74.8689149843255, 40.5780891204637],
+                      [-74.868866298332, 40.5779952572823],
+                      [-74.8688124245678, 40.57775010135],
+                      [-74.8687746423252, 40.5774520496182],
+                      [-74.868743778907, 40.5773191766232],
+                      [-74.8685110317051, 40.5768084546794],
+                      [-74.8684359451238, 40.5766206556786],
+                      [-74.868401045575, 40.5765130228961],
+                      [-74.868382417211, 40.576398475454],
+                      [-74.8683696629306, 40.5762655710272],
+                      [-74.8683732445136, 40.5760981087675],
+                      [-74.8684130425756, 40.5756875916204],
+                      [-74.8684257052279, 40.5755085995232],
+                      [-74.8684067929962, 40.5753079863753],
+                    ],
+                    [
+                      [-74.8672392607063, 40.5004914323646],
+                      [-74.8592788559857, 40.5004859404068],
+                      [-74.8500094927085, 40.4974987924835],
+                      [-74.8538044561689, 40.5186787735871],
+                      [-74.8562708786979, 40.5181727765363],
+                      [-74.8581057622258, 40.5169893481734],
+                      [-74.8597830920328, 40.5173057620752],
+                      [-74.8607924884934, 40.5185026133185],
+                      [-74.8634476416736, 40.5188793365438],
+                      [-74.8674548159503, 40.5179839163925],
+                      [-74.8674603405893, 40.5179671265828],
+                      [-74.8685136350228, 40.5147656470063],
+                      [-74.8681056193225, 40.5116923786796],
+                      [-74.8692177219661, 40.5067881565959],
+                      [-74.8682016752775, 40.5052386702757],
+                      [-74.8676257473825, 40.5037598543873],
+                      [-74.8672392607063, 40.5004914323646],
+                    ],
+                  ],
+                },
+                properties: {
+                  OBJECTID: 241,
+                  MUN: "RARITAN TWP",
+                  COUNTY: "HUNTERDON",
+                  MUN_LABEL: "Raritan Township",
+                  MUN_TYPE: "Township",
+                  NAME: "Raritan Township",
+                  GNIS_NAME: "Township of Raritan",
+                  GNIS: "882179",
+                  SSN: "1021",
+                  MUN_CODE: "1021",
+                  CENSUS2020: "3401961920",
+                  ACRES: 24094.240877366807,
+                  SQ_MILES: 37.647251370885634,
+                  POP2020: 23447,
+                  POP2010: 22185,
+                  POP2000: 19809,
+                  POP1990: 15616,
+                  POP1980: 8292,
+                  POPDEN2020: 623,
+                  POPDEN2010: 589,
+                  POPDEN2000: 526,
+                  POPDEN1990: 415,
+                  POPDEN1980: 220,
+                  COUNTY_MUN: "Hunterdon, Raritan Township",
+                },
+              },
+            ],
+          },
+        },
+        "Flemington Borough": {
+          color: "#FF0000",
+          geojson: {
+            type: "FeatureCollection",
+            crs: {
+              type: "name",
+              properties: {
+                name: "EPSG:4326",
+              },
+            },
+            features: [
+              {
+                type: "Feature",
+                id: 232,
+                geometry: {
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [-74.8538044561689, 40.5186787735871],
+                      [-74.8500094927085, 40.4974987924835],
+                      [-74.8592788559857, 40.5004859404068],
+                      [-74.8672392607063, 40.5004914323646],
+                      [-74.8676257473825, 40.5037598543873],
+                      [-74.8682016752775, 40.5052386702757],
+                      [-74.8692177219661, 40.5067881565959],
+                      [-74.8681056193225, 40.5116923786796],
+                      [-74.8685136350228, 40.5147656470063],
+                      [-74.8674603405893, 40.5179671265828],
+                      [-74.8674548159503, 40.5179839163925],
+                      [-74.8634476416736, 40.5188793365438],
+                      [-74.8607924884934, 40.5185026133185],
+                      [-74.8597830920328, 40.5173057620752],
+                      [-74.8581057622258, 40.5169893481734],
+                      [-74.8562708786979, 40.5181727765363],
+                      [-74.8538044561689, 40.5186787735871],
+                    ],
+                  ],
+                },
+                properties: {
+                  OBJECTID: 232,
+                  MUN: "FLEMINGTON BORO",
+                  COUNTY: "HUNTERDON",
+                  MUN_LABEL: "Flemington Borough",
+                  MUN_TYPE: "Borough",
+                  NAME: "Flemington Borough",
+                  GNIS_NAME: "Borough of Flemington",
+                  GNIS: "885220",
+                  SSN: "1009",
+                  MUN_CODE: "1009",
+                  CENSUS2020: "3401923700",
+                  ACRES: 690.30391123150571,
+                  SQ_MILES: 1.0785998612992278,
+                  POP2020: 4876,
+                  POP2010: 4581,
+                  POP2000: 4200,
+                  POP1990: 4047,
+                  POP1980: 4132,
+                  POPDEN2020: 4521,
+                  POPDEN2010: 4247,
+                  POPDEN2000: 3894,
+                  POPDEN1990: 3752,
+                  POPDEN1980: 3831,
+                  COUNTY_MUN: "Hunterdon, Flemington Borough",
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      // Define overlay districts with their colors, units, and info
+      const overlayDistricts = {
+        1: {
+          name: "18 Minneakoning Overlay",
+          color: "#ff6b6b",
+          units: 19,
+          geojson: overlay1_GeoJSON,
+          parcels: [],
+          layers: [],
+        },
+        2: {
+          name: "Hart/Commerce Overlay",
+          color: "#4ecdc4",
+          units: 58,
+          geojson: overlay2_GeoJSON,
+          parcels: [],
+          layers: [],
+        },
+        3: {
+          name: "206 Reaville Road Overlay",
+          color: "#45b7d1",
+          units: 37,
+          geojson: overlay3_GeoJSON,
+          parcels: [],
+          layers: [],
+        },
+        4: {
+          name: "314-324 Hwy 202 Overlay",
+          color: "#f9ca24",
+          units: 78,
+          geojson: overlay4_GeoJSON,
+          parcels: [],
+          layers: [],
+        },
+        5: {
+          name: "454 Hwy 202/Case Blvd. Overlay",
+          color: "#a55eea",
+          units: 32,
+          geojson: overlay5_GeoJSON,
+          parcels: [],
+          layers: [],
+        },
+        6: {
+          name: "Hwy 202/S. Main St. Overlay",
+          color: "#26de81",
+          units: 57,
+          geojson: overlay6_GeoJSON,
+          parcels: [],
+          layers: [],
+        },
+      };
+
+      // Parcel detail mapping for descriptions
+      const parcelDetails = {
+        "16.01_16.05": "Block 16.01, Lot 16.05",
+        "71_21": "Block 71, Lot 21 (22 Hart Blvd)",
+        "71.02_21": "Block 71.02, Lot 21 (Commerce St)",
+        "72_7": "Block 72, Lot 7",
+        "72.23_31.01": "Block 72.23, Lot 31.01",
+        "72.23_32": "Block 72.23, Lot 32",
+        "40_9": "Block 40, Lot 9",
+        "70_3": "Block 70, Lot 3 (282/298 S. Main)",
+        "70_12": "Block 70, Lot 12 (249/253 Hwy 202/31 S)",
+        "70_13": "Block 70, Lot 13",
+        "70_14": "Block 70, Lot 14",
+      };
+
+      function loadTownshipBoundaries() {
+        for (const [townshipName, data] of Object.entries(townshipBoundaries)) {
+          const layer = L.geoJSON(data.geojson, {
+            style: {
+              color: data.color,
+              fillColor: "transparent",
+              weight: 2,
+              opacity: 0.8,
+              dashArray: "10, 5",
+            },
+            interactive: false,
+          }).addTo(map);
+
+          // --- ADD THIS LINE ---
+          // Store the layer reference so we can zoom to it later
+          data.layer = layer;
+          // --- END ADDITION ---
+        }
+        updateTownshipLegend();
+      }
+
+      function updateTownshipLegend() {
+        const townshipLegend = document.getElementById("townshipLegend");
+        townshipLegend.innerHTML = "";
+
+        for (const [townshipName, data] of Object.entries(townshipBoundaries)) {
+          const legendItem = document.createElement("div");
+          legendItem.className = "township-legend-item";
+
+          // --- ADD these two lines to make it look and act like a button ---
+          legendItem.style.cursor = "pointer";
+          legendItem.onclick = () => zoomToTownship(townshipName);
+          // --- END ADDITION ---
+
+          legendItem.innerHTML = `
+            <div class="legend-color" style="background: transparent; border: 2px dashed ${data.color}; width: 16px; height: 16px;"></div>
+            <span>${townshipName}</span>
+          `;
+          townshipLegend.appendChild(legendItem);
+        }
+      }
+
+      let allFeaturesBounds = L.latLngBounds([]);
+
+      function loadAllOverlays() {
+        // Loop through and process the data. The function we just edited will
+        // now automatically populate `allFeaturesBounds` as it runs.
+        for (let i = 1; i <= 6; i++) {
+          const overlay = overlayDistricts[i];
+          if (overlay.geojson && overlay.geojson.features) {
+            processOverlayData(i, overlay.geojson);
+          }
+        }
+
+        // Now, fit the map to the CORRECT combined bounds of all polygons.
+        if (allFeaturesBounds.isValid()) {
+          // Because the bounds area is now correct, padding will have a very clear effect.
+          // Try a value like 50 or 60 to see a noticeable zoom out.
+          map.fitBounds(allFeaturesBounds, { padding: [10, 10] });
+        }
+
+        // Update the rest of the UI
+        updateLegend();
+        updateOverlaySections();
+        loadTownshipBoundaries();
+      }
+
+      function processOverlayData(overlayId, geojsonData) {
+        const overlay = overlayDistricts[overlayId];
+        let bounds = [];
+
+        // Clear existing data
+        overlay.parcels = [];
+        overlay.layers.forEach((layer) => map.removeLayer(layer));
+        overlay.layers = [];
+
+        // Process each feature
+        geojsonData.features.forEach((feature, index) => {
+          const props = feature.properties;
+          const geometry = feature.geometry;
+
+          // Extract block and lot from properties
+          const block = props.BLOCK || props.BLK || props.block;
+          const lot = props.LOT || props.lot;
+          const qualifier =
+            props.QUALIFIER || props.QUAL || props.qualifier || "";
+
+          // Create lookup key
+          const lookupKey = `${block}_${lot}${qualifier ? `_${qualifier}` : ""}`;
+          const simpleLookup = `${block}_${lot}`;
+
+          // Calculate centroid for coordinates
+          let coordinates;
+          if (geometry.type === "Polygon") {
+            const coords = geometry.coordinates[0];
+            const centroidLng =
+              coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
+            const centroidLat =
+              coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
+            coordinates = [centroidLat, centroidLng];
+          } else if (geometry.type === "MultiPolygon") {
+            const allCoords = geometry.coordinates.flat(2);
+            const centroidLng =
+              allCoords.reduce((sum, coord) => sum + coord[0], 0) /
+              allCoords.length;
+            const centroidLat =
+              allCoords.reduce((sum, coord) => sum + coord[1], 0) /
+              allCoords.length;
+            coordinates = [centroidLat, centroidLng];
+          } else if (geometry.type === "Point") {
+            coordinates = [geometry.coordinates[1], geometry.coordinates[0]];
+          } else {
+            console.warn("Unsupported geometry type:", geometry.type);
+            return;
+          }
+
+          const parcel = {
+            name: overlay.name,
+            description:
+              parcelDetails[lookupKey] ||
+              parcelDetails[simpleLookup] ||
+              `Block ${block}, Lot ${lot}`,
+            block: block,
+            lot: lot,
+            coordinates: coordinates,
+            properties: props,
+            geometry: geometry,
+            color: overlay.color,
+          };
+
+          overlay.parcels.push(parcel);
+          bounds.push(coordinates);
+
+          const layer = addParcelToMap(parcel, overlay);
+          overlay.layers.push(layer);
+          allFeaturesBounds.extend(layer.getBounds());
+        });
+
+        return bounds;
+      }
+
+      function addParcelToMap(parcel, overlay) {
+        let layer;
+
+        // Handle Polygon or MultiPolygon
+        if (
+          parcel.geometry.type === "Polygon" ||
+          parcel.geometry.type === "MultiPolygon"
+        ) {
+          const coords =
+            parcel.geometry.type === "Polygon"
+              ? [parcel.geometry.coordinates[0].map((c) => [c[1], c[0]])]
+              : parcel.geometry.coordinates.map((polygon) =>
+                  polygon[0].map((c) => [c[1], c[0]]),
+                );
+
+          layer = L.polygon(coords, {
+            color: overlay.color,
+            fillColor: overlay.color,
+            fillOpacity: 0.3,
+            weight: 2,
+            interactive: true,
+          }).addTo(map);
+        } else {
+          // Fallback for Points
+          layer = L.marker(parcel.coordinates, { title: parcel.name }).addTo(
+            map,
+          );
+        }
+
+        // Popup content
+        const popupContent = `
+    <div style="max-width: 300px;">
+      <h3 style="color: ${overlay.color}; margin:0 0 10px 0;">${parcel.name}</h3>
+      <p><strong>Block:</strong> ${parcel.block}</p>
+      <p><strong>Lot:</strong> ${parcel.lot}</p>
+      <p style="font-style: italic;">${parcel.description}</p>
+      ${parcel.properties.PROP_LOC ? `<p><strong>Address:</strong> ${parcel.properties.PROP_LOC}</p>` : ""}
+      ${parcel.properties.OWNER_NAME ? `<p><strong>Owner:</strong> ${parcel.properties.OWNER_NAME}</p>` : ""}
+    </div>
+  `;
+
+        layer.bindPopup(popupContent);
+
+        // Click interaction
+        layer.on("click", () => {
+          layer.openPopup();
+
+          if (layer.setStyle) {
+            layer.setStyle({ weight: 4, color: "#000", fillOpacity: 0.5 });
+            setTimeout(
+              () =>
+                layer.setStyle({
+                  weight: 2,
+                  color: overlay.color,
+                  fillOpacity: 0.3,
+                }),
+              2000,
+            );
+          }
+
+          // // Scroll overlay section into view
+          // const overlaySections = document.querySelectorAll(".overlay-section");
+          // overlaySections.forEach((section) => {
+          //   if (
+          //     section
+          //       .querySelector("h4")
+          //       ?.textContent.includes(parcel.description)
+          //   ) {
+          //     section.scrollIntoView({ behavior: "smooth", block: "start" });
+          //     if (section.classList.contains("collapsed"))
+          //       section.classList.remove("collapsed");
+          //   }
+          // });
+        });
+
+        parcel.layer = layer;
+        return layer;
+      }
+
+      function updateLegend() {
+        const legendItems = document.getElementById("legendItems");
+        legendItems.innerHTML = "";
+
+        for (let i = 1; i <= 6; i++) {
+          const overlay = overlayDistricts[i];
+          const legendItem = document.createElement("div");
+          legendItem.className = "legend-item";
+          legendItem.style.cursor = "pointer";
+          legendItem.innerHTML = `
+                  <div class="legend-color" style="background: ${overlay.color}"></div>
+                  <span>${overlay.name} - ${overlay.units} units</span>
+                `;
+
+          // Add hover effect to highlight parcels if they exist
+          if (overlay.parcels.length > 0) {
+            legendItem.onmouseover = () => highlightOverlay(i, true);
+            legendItem.onmouseout = () => highlightOverlay(i, false);
+            legendItem.onclick = () => zoomToOverlay(i);
+          }
+
+          legendItems.appendChild(legendItem);
+        }
+      }
+
+      function highlightOverlay(overlayId, highlight) {
+        const overlay = overlayDistricts[overlayId];
+        overlay.layers.forEach((layer) => {
+          if (layer instanceof L.Polygon) {
+            layer.setStyle({
+              weight: highlight ? 4 : 2,
+              opacity: highlight ? 1 : 0.8,
+              fillOpacity: highlight ? 0.6 : 0.3,
+            });
+          }
+        });
+      }
+
+      function zoomToOverlay(overlayId) {
+        const overlay = overlayDistricts[overlayId];
+        if (overlay.parcels.length > 0) {
+          const bounds = overlay.parcels.map((p) =>
+            p.layer.getBounds ? p.layer.getBounds() : [p.coordinates],
+          );
+          const combinedBounds = bounds.reduce(
+            (acc, b) => acc.extend(b),
+            L.latLngBounds(bounds[0]),
+          );
+          map.fitBounds(combinedBounds, { padding: [50, 50] }); // increased padding for zoomed out view
+        }
+      }
+
+      function zoomToTownship(townshipName) {
+        const township = townshipBoundaries[townshipName];
+        if (township && township.layer) {
+          map.fitBounds(township.layer.getBounds(), { padding: [50, 50] });
+        }
+      }
+
+      function updateOverlaySections() {
+        const overlaysList = document.getElementById("overlaysList");
+        overlaysList.innerHTML = "";
+
+        for (let i = 1; i <= 6; i++) {
+          const overlay = overlayDistricts[i];
+          if (overlay.parcels.length > 0) {
+            const section = document.createElement("div");
+            section.className = "overlay-section";
+
+            const header = document.createElement("div");
+            header.className = "section-header";
+            header.style.backgroundColor = overlay.color;
+            header.innerHTML = `
+                    <span>${overlay.name} - ${overlay.units} units (${overlay.parcels.length} parcel${overlay.parcels.length > 1 ? "s" : ""})</span>
+                    <span class="toggle-icon">▼</span>
+                  `;
+            header.onclick = () => toggleSection(section);
+
+            const content = document.createElement("div");
+            content.className = "section-content";
+
+            overlay.parcels.forEach((parcel) => {
+              const card = document.createElement("div");
+              card.className = "parcel-card";
+              card.style.borderLeftColor = overlay.color;
+              card.innerHTML = `
+                      <h4>${parcel.description}</h4>
+                      <p><strong>Block:</strong> ${parcel.block} | <strong>Lot:</strong> ${parcel.lot}</p>
+                      ${parcel.properties.PROP_LOC ? `<p><strong>Address:</strong> ${parcel.properties.PROP_LOC}</p>` : ""}
+                      ${parcel.properties.OWNER_NAME ? `<p><strong>Owner:</strong> ${parcel.properties.OWNER_NAME}</p>` : ""}
+                      <button onclick="zoomToParcel(${parcel.coordinates[0]}, ${parcel.coordinates[1]})"
+                              style="background: ${overlay.color}; color: white; border: none; padding: 18px 25px; border-radius: 5px; cursor: pointer;">
+                        View on Map
+                      </button>
+                    `;
+              content.appendChild(card);
+            });
+
+            section.appendChild(header);
+            section.appendChild(content);
+            overlaysList.appendChild(section);
+          }
+        }
+      }
+
+      function toggleSection(section) {
+        section.classList.toggle("collapsed");
+      }
+
+      function zoomToParcel(lat, lng) {
+        document
+          .getElementById("map")
+          .scrollIntoView({ behavior: "smooth", block: "start" });
+
+        // Find parcel layer
+        for (let i = 1; i <= 6; i++) {
+          const overlay = overlayDistricts[i];
+          for (const parcel of overlay.parcels) {
+            if (
+              Math.abs(parcel.coordinates[0] - lat) < 0.0001 &&
+              Math.abs(parcel.coordinates[1] - lng) < 0.0001
+            ) {
+              if (!parcel.layer) continue;
+
+              // Zoom to polygon bounds if exists, else marker
+              if (parcel.layer.getBounds) {
+                map.fitBounds(parcel.layer.getBounds(), { padding: [40, 40] });
+              } else {
+                map.setView(parcel.coordinates, 16);
+              }
+
+              // Open popup and highlight
+              parcel.layer.openPopup();
+              if (parcel.layer.setStyle) {
+                parcel.layer.setStyle({
+                  weight: 4,
+                  color: "#000",
+                  fillOpacity: 0.5,
+                });
+                setTimeout(
+                  () =>
+                    parcel.layer.setStyle({
+                      weight: 2,
+                      color: overlay.color,
+                      fillOpacity: 0.3,
+                    }),
+                  2000,
+                );
+              }
+
+              return;
+            }
+          }
+        }
+      }
+
+      // Initialize the map when page loads
+      loadAllOverlays();
+    </script>
+  </body>
+  <footer class="footer">
+    <span>
+      Created by
+      <a href="http://joshpatra.me" target="_blank" rel="noopener noreferrer"
+        >Josh Patra</a
+      >
+    </span>
+    <a
+      href="https://github.com/YOUR-REPO-LINK"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="github-button"
+    >
+      View Source on GitHub
+    </a>
+  </footer>
+</html>
