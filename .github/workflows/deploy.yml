@@ -27,10 +27,15 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare artifact folder
+        run: |
+          mkdir artifact
+          cp hunterdon_fair_housing_map.html artifact/
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'hunterdon_fair_housing_map.html'
+          path: 'artifact'
 
       - name: Deploy to GitHub Pages
         id: deployment
